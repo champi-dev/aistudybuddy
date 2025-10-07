@@ -1,0 +1,97 @@
+import { NavLink } from 'react-router-dom'
+import { 
+  LayoutDashboard, 
+  BookOpen, 
+  BarChart3, 
+  Settings,
+  Zap,
+  Plus
+} from 'lucide-react'
+import { useAuthStore } from '../stores/authStore'
+
+export default function Sidebar() {
+  const { user } = useAuthStore()
+  
+  const navigation = [
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Study', href: '/study', icon: BookOpen },
+    { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+    { name: 'Settings', href: '/settings', icon: Settings }
+  ]
+
+  const tokensUsed = user?.tokensUsed || 0
+  const tokenLimit = user?.dailyTokenLimit || 10000
+  const tokenPercentage = Math.min((tokensUsed / tokenLimit) * 100, 100)
+
+  return (
+    <aside className="fixed left-0 top-16 w-64 h-[calc(100vh-4rem)] bg-surface border-r border-surface-light">
+      <div className="flex flex-col h-full">
+        {/* Navigation */}
+        <nav className="flex-1 p-4 space-y-2">
+          {navigation.map((item) => (
+            <NavLink
+              key={item.name}
+              to={item.href}
+              className={({ isActive }) =>
+                `flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-primary text-white'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-light'
+                }`
+              }
+            >
+              <item.icon className="h-5 w-5 mr-3" />
+              {item.name}
+            </NavLink>
+          ))}
+          
+          {/* Quick Actions */}
+          <div className="pt-4 mt-4 border-t border-surface-light">
+            <p className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-2">
+              Quick Actions
+            </p>
+            <button className="w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-light">
+              <Plus className="h-5 w-5 mr-3" />
+              Create Deck
+            </button>
+          </div>
+        </nav>
+
+        {/* Token Usage Widget */}
+        <div className="p-4 border-t border-surface-light">
+          <div className="bg-background rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center">
+                <Zap className="h-4 w-4 text-secondary mr-1" />
+                <span className="text-xs font-medium text-text-primary">AI Tokens</span>
+              </div>
+              <span className="text-xs text-text-secondary">
+                {tokensUsed.toLocaleString()} / {tokenLimit.toLocaleString()}
+              </span>
+            </div>
+            
+            {/* Progress Bar */}
+            <div className="w-full bg-surface-light rounded-full h-2">
+              <div 
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  tokenPercentage > 90 
+                    ? 'bg-error' 
+                    : tokenPercentage > 70 
+                    ? 'bg-warning' 
+                    : 'bg-success'
+                }`}
+                style={{ width: `${tokenPercentage}%` }}
+              />
+            </div>
+            
+            <p className="text-xs text-text-secondary mt-1">
+              {tokenPercentage > 90 
+                ? 'Almost at daily limit' 
+                : `${Math.round(100 - tokenPercentage)}% remaining`}
+            </p>
+          </div>
+        </div>
+      </div>
+    </aside>
+  )
+}
