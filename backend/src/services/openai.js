@@ -156,21 +156,33 @@ class OpenAIService {
 
   // Generate flashcards from topic
   async generateFlashcards(topic, count, difficulty, userId) {
-    const prompt = `Create exactly ${count} flashcards for the topic "${topic}" at difficulty level ${difficulty}/5.
+    const prompt = `Create exactly ${count} multiple choice quiz questions for the topic "${topic}" at difficulty level ${difficulty}/5.
 
-You must return ONLY a JSON array (starting with [ and ending with ]) containing flashcard objects. Do not include any explanatory text, markdown formatting, or other content.
+You must return ONLY a JSON array (starting with [ and ending with ]) containing quiz question objects. Do not include any explanatory text, markdown formatting, or other content.
 
-Each flashcard object must have exactly these fields:
-- "front": The question or prompt (max 200 chars)
-- "back": The answer or explanation (max 400 chars)  
+Each quiz question object must have exactly these fields:
+- "front": The question (max 200 chars)
+- "back": Brief explanation of why the correct answer is correct (max 200 chars)
 - "difficulty": Number from 1-5
+- "is_quiz": true (boolean)
+- "options": Array of exactly 4 answer choices (each max 100 chars)
+- "correct_option": The index (0-3) of the correct answer in the options array
+
+IMPORTANT: 
+- Each question must have exactly 4 options
+- Only ONE option should be correct
+- The other 3 options should be plausible but incorrect
+- Mix up the position of the correct answer (don't always make it the same index)
 
 Example response:
 [
   {
     "front": "What is the capital of France?",
-    "back": "Paris - the largest city and political center of France, located in north-central France along the Seine River.",
-    "difficulty": 2
+    "back": "Paris has been France's capital since 987 AD and is its largest city.",
+    "difficulty": 2,
+    "is_quiz": true,
+    "options": ["London", "Berlin", "Paris", "Madrid"],
+    "correct_option": 2
   }
 ]
 
@@ -183,7 +195,7 @@ Difficulty: ${difficulty}`;
       temperature: 0.7,
       jsonMode: false, // Disable JSON mode to allow array responses
       cacheTTL: 2592000, // 30 days for flashcards
-      systemPrompt: 'You are a flashcard generator. You must return only valid JSON arrays. Never include explanatory text or markdown formatting. The response must start with [ and end with ].'
+      systemPrompt: 'You are a quiz question generator specializing in multiple choice questions. You must return only valid JSON arrays containing quiz objects with is_quiz:true, options array, and correct_option index. Never include explanatory text or markdown formatting. The response must start with [ and end with ]. Each question must have exactly 4 options with only one correct answer.'
     };
 
     const response = await this.getOrGenerateResponse(prompt, 'generateCards', options, userId);
@@ -208,7 +220,16 @@ Difficulty: ${difficulty}`;
         console.error('Parsed data is not an array:', cards);
         throw new Error('Response is not an array');
       }
-      return cards.slice(0, count); // Ensure we don't exceed requested count
+      
+      // Ensure all cards are quiz format
+      const quizCards = cards.map(card => ({
+        ...card,
+        is_quiz: true,
+        options: card.options || [],
+        correct_option: card.correct_option !== undefined ? card.correct_option : 0
+      }));
+      
+      return quizCards.slice(0, count); // Ensure we don't exceed requested count
     } catch (error) {
       console.error('Failed to parse flashcards JSON:', error);
       console.error('Raw response was:', response.content);

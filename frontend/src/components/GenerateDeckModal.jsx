@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { X, Sparkles, Zap, FileText, Link as LinkIcon, AlertCircle } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import Button from './ui/Button'
 import Input from './ui/Input'
 import { useAuthStore } from '../stores/authStore'
@@ -8,6 +9,7 @@ import { useGenerateDeck } from '../hooks/useDecks'
 import toast from 'react-hot-toast'
 
 export default function GenerateDeckModal({ isOpen, onClose }) {
+  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('topic')
   const [isGenerating, setIsGenerating] = useState(false)
   const [estimatedTokens, setEstimatedTokens] = useState(0)
@@ -79,11 +81,15 @@ export default function GenerateDeckModal({ isOpen, onClose }) {
       
       reset()
       onClose()
-      toast.success('Deck generation started! Check your dashboard for the new deck.')
+      toast.success('Deck generated successfully with ' + (result.cardsGenerated || result.deck?.card_count || 0) + ' cards!')
+      
+      // Invalidate queries to refresh the dashboard
+      queryClient.invalidateQueries(['decks'])
       
     } catch (error) {
       console.error('Error generating deck:', error)
-      toast.error('Failed to generate deck. Please try again.')
+      const errorMessage = error.response?.data?.message || 'Failed to generate deck. Please try again.'
+      toast.error(errorMessage)
     } finally {
       setIsGenerating(false)
     }
