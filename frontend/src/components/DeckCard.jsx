@@ -10,11 +10,27 @@ import {
   Calendar
 } from 'lucide-react'
 import { useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from './ui/Button'
-// import { formatDistanceToNow } from 'date-fns'
+import { useDeleteDeck } from '../hooks/useDecks'
+import { deckKeys } from '../hooks/useDecks'
+import toast from 'react-hot-toast'
 
 export default function DeckCard({ deck }) {
   const [showMenu, setShowMenu] = useState(false)
+  const deleteDeckMutation = useDeleteDeck()
+  
+  const handleDelete = async () => {
+    if (window.confirm(`Are you sure you want to delete "${deck.title}"? This action cannot be undone.`)) {
+      try {
+        await deleteDeckMutation.mutateAsync(deck.id)
+        setShowMenu(false)
+      } catch (error) {
+        console.error('Failed to delete deck:', error)
+      }
+    }
+  }
+  
 
   const formatLastStudied = (dateString) => {
     if (!dateString) return 'Never studied'
@@ -79,13 +95,13 @@ export default function DeckCard({ deck }) {
 
             {showMenu && (
               <div className="absolute right-0 mt-2 w-40 bg-surface border border-surface-light rounded-lg shadow-lg z-10">
-                <button className="w-full text-left px-3 py-2 text-sm text-text-primary hover:bg-surface-light flex items-center">
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit
-                </button>
-                <button className="w-full text-left px-3 py-2 text-sm text-error hover:bg-surface-light flex items-center">
+                <button 
+                  onClick={handleDelete}
+                  className="w-full text-left px-3 py-2 text-sm text-error hover:bg-surface-light flex items-center"
+                  disabled={deleteDeckMutation.isPending}
+                >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
+                  {deleteDeckMutation.isPending ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             )}

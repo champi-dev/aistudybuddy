@@ -1,18 +1,37 @@
 import { useForm } from 'react-hook-form'
-import { X, BookOpen } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { X, Sparkles } from 'lucide-react'
 import Button from './ui/Button'
 import Input from './ui/Input'
-import { useCreateDeck } from '../hooks/useDecks'
+import { useGenerateDeck } from '../hooks/useDecks'
+import { useAuthStore } from '../stores/authStore'
+import toast from 'react-hot-toast'
 
 export default function CreateDeckModal({ isOpen, onClose }) {
-  const createDeckMutation = useCreateDeck()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const generateDeckMutation = useGenerateDeck()
+  const { user, hasTokens, updateTokenUsage } = useAuthStore()
   
   const {
     register,
     handleSubmit,
     formState: { errors },
-    reset
-  } = useForm()
+    reset,
+    watch
+  } = useForm({
+    defaultValues: {
+      cardCount: 10,
+      difficulty: 2
+    }
+  })
+
+  const cardCount = watch('cardCount')
+  const difficulty = watch('difficulty')
+  
+  // Estimate tokens for AI generation
+  const estimatedTokens = Math.round(cardCount * 100 * (1 + (difficulty - 1) * 0.2))
 
   const categories = [
     'Programming',
@@ -38,11 +57,50 @@ export default function CreateDeckModal({ isOpen, onClose }) {
 
   const onSubmit = async (data) => {
     try {
-      await createDeckMutation.mutateAsync(data)
+      // Check token availability for AI generation
+      if (!hasTokens(estimatedTokens)) {
+        toast.error(`Insufficient tokens. You need ${estimatedTokens} tokens but only have ${user?.dailyTokenLimit - user?.tokensUsed} remaining.`)
+        return
+      }
+
+      // Generate deck with AI
+      const generationData = {
+        ...data,
+        cardCount: data.cardCount,
+        difficulty: data.difficulty,
+        type: 'topic'
+      }
+      
+      const result = await generateDeckMutation.mutateAsync(generationData)
+      updateTokenUsage(estimatedTokens)
+      
       reset()
       onClose()
+      toast.success('Deck generated successfully with ' + (result.cardsGenerated || result.deck?.card_count || 0) + ' cards!')
+      
+      // Invalidate queries to refresh the dashboard
+      queryClient.invalidateQueries(['decks'])
+      
+      // Navigate to the generated deck
+      if (result.deck?.id) {
+        navigate(`/deck/${result.deck.id}`)
+      }
     } catch (error) {
-      // Error is handled by the mutation
+      console.error('Error generating deck:', error)
+      
+      // Handle timeout, service unavailable, or server errors
+      if (error.code === 'ECONNABORTED' || error.response?.status === 503 || error.response?.status === 500) {
+        if (error.response?.status === 500) {
+          toast.error('Server error during generation. Please check your dashboard - the deck may have been created successfully.')
+        } else {
+          toast.error('Generation is taking longer than expected. Please check your dashboard - the deck may have been created successfully.')
+        }
+        // Still invalidate queries in case it worked
+        queryClient.invalidateQueries(['decks'])
+      } else {
+        const errorMessage = error.response?.data?.message || 'Failed to generate deck. Please try again.'
+        toast.error(errorMessage)
+      }
     }
   }
 
@@ -55,12 +113,12 @@ export default function CreateDeckModal({ isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-surface rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-surface-light">
           <div className="flex items-center">
-            <BookOpen className="h-5 w-5 text-primary mr-2" />
-            <h2 className="text-lg font-semibold text-text-primary">Create New Deck</h2>
+            <Sparkles className="h-5 w-5 text-primary mr-2" />
+            <h2 className="text-lg font-semibold text-text-primary">Generate Deck with AI</h2>
           </div>
           <button
             onClick={handleClose}
@@ -85,6 +143,20 @@ export default function CreateDeckModal({ isOpen, onClose }) {
             error={errors.title?.message}
           />
 
+          <Input
+            label="Topic"
+            placeholder="e.g., French Revolution, Quantum Physics, React Hooks"
+            {...register('topic', {
+              required: 'Topic is required for AI generation',
+              maxLength: {
+                value: 500,
+                message: 'Topic must be less than 500 characters'
+              }
+            })}
+            error={errors.topic?.message}
+            helperText="Describe what you want to learn about"
+          />
+
           <div>
             <label className="block text-sm font-medium text-text-primary mb-1">
               Description
@@ -105,19 +177,19 @@ export default function CreateDeckModal({ isOpen, onClose }) {
             )}
           </div>
 
+          {/* AI Generation Settings */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">
-                Category
+                Number of Cards
               </label>
               <select
                 className="block w-full rounded-lg border border-surface-light px-3 py-2 text-sm bg-background text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                {...register('category')}
+                {...register('cardCount', { valueAsNumber: true })}
               >
-                <option value="">Select category</option>
-                {categories.map(category => (
-                  <option key={category} value={category}>
-                    {category}
+                {[5, 10, 15, 20, 25, 30].map(count => (
+                  <option key={count} value={count}>
+                    {count} cards
                   </option>
                 ))}
               </select>
@@ -125,11 +197,11 @@ export default function CreateDeckModal({ isOpen, onClose }) {
 
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">
-                Difficulty
+                Difficulty Level
               </label>
               <select
                 className="block w-full rounded-lg border border-surface-light px-3 py-2 text-sm bg-background text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                {...register('difficulty_level', { valueAsNumber: true })}
+                {...register('difficulty', { valueAsNumber: true })}
               >
                 {difficulties.map(diff => (
                   <option key={diff.value} value={diff.value}>
@@ -139,6 +211,31 @@ export default function CreateDeckModal({ isOpen, onClose }) {
               </select>
             </div>
           </div>
+
+          {/* Token Usage Info */}
+          {user && (
+            <div className="bg-background rounded-lg p-4 border border-surface-light">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center">
+                  <Sparkles className="h-4 w-4 text-secondary mr-2" />
+                  <span className="text-sm font-medium text-text-primary">Token Usage</span>
+                </div>
+                <span className="text-sm text-text-secondary">
+                  ~{estimatedTokens.toLocaleString()} tokens
+                </span>
+              </div>
+              
+              <div className="text-xs text-text-secondary">
+                <p>Remaining today: {(user.dailyTokenLimit - user.tokensUsed).toLocaleString()} tokens</p>
+              </div>
+
+              {!hasTokens(estimatedTokens) && (
+                <div className="flex items-center mt-2 text-warning">
+                  <span className="text-xs">Insufficient tokens for this generation</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-3 pt-4">
@@ -152,16 +249,19 @@ export default function CreateDeckModal({ isOpen, onClose }) {
             </Button>
             <Button
               type="submit"
-              disabled={createDeckMutation.isPending}
+              disabled={generateDeckMutation.isPending || !hasTokens(estimatedTokens)}
               className="flex-1"
             >
-              {createDeckMutation.isPending ? (
+              {generateDeckMutation.isPending ? (
                 <div className="flex items-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creating...
+                  Generating...
                 </div>
               ) : (
-                'Create Deck'
+                <div className="flex items-center">
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Generate Deck
+                </div>
               )}
             </Button>
           </div>

@@ -1,19 +1,32 @@
 import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Play, Plus, Edit, Trash2, MoreVertical, BookOpen } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Button from '../components/ui/Button'
 import { useDeck, useDeleteDeck } from '../hooks/useDecks'
 import { cardsAPI } from '../services/api'
-import EditDeckModal from '../components/EditDeckModal'
 import toast from 'react-hot-toast'
 
 export default function DeckDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [showCardMenu, setShowCardMenu] = useState(null)
-  const [showEditModal, setShowEditModal] = useState(false)
   const deleteDeckMutation = useDeleteDeck()
+  const queryClient = useQueryClient()
+  
+  // Card mutations
+  const deleteCardMutation = useMutation({
+    mutationFn: (cardId) => cardsAPI.delete(cardId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['cards', id])
+      toast.success('Card deleted successfully')
+      setShowCardMenu(null)
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to delete card')
+    }
+  })
+  
 
   // Fetch deck data
   const { data: deck, isLoading: deckLoading, error: deckError } = useDeck(id)
@@ -89,10 +102,6 @@ export default function DeckDetail() {
         </div>
 
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => setShowEditModal(true)}>
-            <Edit className="h-4 w-4 mr-2" />
-            Edit Deck
-          </Button>
           <Button 
             variant="outline" 
             onClick={async () => {
@@ -145,10 +154,6 @@ export default function DeckDetail() {
       <div className="bg-surface rounded-lg border border-surface-light">
         <div className="flex items-center justify-between p-6 border-b border-surface-light">
           <h2 className="text-lg font-semibold text-text-primary">Cards</h2>
-          <Button size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Card
-          </Button>
         </div>
 
         {cards.length > 0 ? (
@@ -178,10 +183,14 @@ export default function DeckDetail() {
 
                     {showCardMenu === card.id && (
                       <div className="absolute right-0 mt-2 w-32 bg-surface border border-surface-light rounded-lg shadow-lg z-10">
-                        <button className="w-full text-left px-3 py-2 text-sm text-text-primary hover:bg-surface-light">
-                          Edit
-                        </button>
-                        <button className="w-full text-left px-3 py-2 text-sm text-error hover:bg-surface-light">
+                        <button 
+                          onClick={async () => {
+                            if (window.confirm('Are you sure you want to delete this card?')) {
+                              deleteCardMutation.mutate(card.id)
+                            }
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-error hover:bg-surface-light"
+                        >
                           Delete
                         </button>
                       </div>
@@ -195,21 +204,11 @@ export default function DeckDetail() {
           <div className="text-center py-12">
             <BookOpen className="h-12 w-12 text-text-secondary mx-auto mb-4" />
             <h3 className="text-lg font-medium text-text-primary mb-2">No cards yet</h3>
-            <p className="text-text-secondary mb-6">Add your first card to start studying this deck.</p>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add First Card
-            </Button>
+            <p className="text-text-secondary mb-6">This deck doesn't have any cards. Try generating a new deck with AI.</p>
           </div>
         )}
       </div>
 
-      {/* Edit Deck Modal */}
-      <EditDeckModal 
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        deck={deck?.deck || deck}
-      />
     </div>
   )
 }

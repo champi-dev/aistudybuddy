@@ -4,7 +4,6 @@ import { Plus, BookOpen, Clock, TrendingUp, Sparkles } from 'lucide-react'
 import Button from '../components/ui/Button'
 import DeckCard from '../components/DeckCard'
 import CreateDeckModal from '../components/CreateDeckModal'
-import GenerateDeckModal from '../components/GenerateDeckModal'
 import { useDecks } from '../hooks/useDecks'
 import { useAuthStore } from '../stores/authStore'
 import { useQuery } from '@tanstack/react-query'
@@ -12,7 +11,6 @@ import api from '../services/api'
 
 export default function Dashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showGenerateModal, setShowGenerateModal] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   
@@ -122,15 +120,7 @@ export default function Dashboard() {
         {/* Action Buttons */}
         <div className="flex gap-3">
           <Button
-            variant="outline"
             onClick={() => setShowCreateModal(true)}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Create Deck
-          </Button>
-          
-          <Button
-            onClick={() => setShowGenerateModal(true)}
           >
             <Sparkles className="h-4 w-4 mr-2" />
             Generate with AI
@@ -166,8 +156,8 @@ export default function Dashboard() {
                 : 'Create your first deck to get started'}
             </p>
             <Button onClick={() => setShowCreateModal(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Your First Deck
+              <Sparkles className="h-4 w-4 mr-2" />
+              Generate Your First Deck
             </Button>
           </div>
         )}
@@ -220,11 +210,6 @@ export default function Dashboard() {
       <CreateDeckModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-      />
-      
-      <GenerateDeckModal
-        isOpen={showGenerateModal}
-        onClose={() => setShowGenerateModal(false)}
       />
     </div>
   )
