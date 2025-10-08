@@ -8,7 +8,8 @@ const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  timeout: 60000 // 60 second timeout for all requests
 })
 
 // Request interceptor to add auth token and dev user ID
@@ -108,7 +109,7 @@ export const decksAPI = {
     api.delete(`/decks/${id}`),
   
   generate: (data) => 
-    api.post('/decks/generate', data),
+    api.post('/decks/generate', data, { timeout: 180000 }), // 3 minutes for deck generation
   
   getGenerationStatus: (jobId) => 
     api.get(`/decks/generate/status/${jobId}`)

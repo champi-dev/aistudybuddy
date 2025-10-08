@@ -53,12 +53,13 @@ router.post('/explain', [
   } catch (error) {
     console.error('Generate explanation error:', error);
     
-    if (error.message.includes('token limit')) {
-      return res.status(429).json({ 
-        message: error.message,
-        type: 'TOKEN_LIMIT_EXCEEDED'
-      });
-    }
+    // Token limit check disabled
+    // if (error.message.includes('token limit')) {
+    //   return res.status(429).json({ 
+    //     message: error.message,
+    //     type: 'TOKEN_LIMIT_EXCEEDED'
+    //   });
+    // }
     
     res.status(500).json({ message: 'Failed to generate explanation' });
   }
@@ -98,12 +99,13 @@ router.post('/hint', [
   } catch (error) {
     console.error('Generate hint error:', error);
     
-    if (error.message.includes('token limit')) {
-      return res.status(429).json({ 
-        message: error.message,
-        type: 'TOKEN_LIMIT_EXCEEDED'
-      });
-    }
+    // Token limit check disabled
+    // if (error.message.includes('token limit')) {
+    //   return res.status(429).json({ 
+    //     message: error.message,
+    //     type: 'TOKEN_LIMIT_EXCEEDED'
+    //   });
+    // }
     
     res.status(500).json({ message: 'Failed to generate hint' });
   }
@@ -128,7 +130,8 @@ router.post('/generate-quiz', [
 
     // Estimate tokens
     const estimatedTokens = questionCount * 60;
-    const tokenCheck = await openaiService.checkTokenLimit(req.user.id, estimatedTokens);
+    // Token limit check disabled
+    // const tokenCheck = await openaiService.checkTokenLimit(req.user.id, estimatedTokens);
 
     const cards = await openaiService.generateFlashcards(
       topic, 
@@ -141,17 +144,18 @@ router.post('/generate-quiz', [
       quiz: cards,
       topic,
       tokensUsed: estimatedTokens,
-      remainingTokens: tokenCheck.dailyLimit - tokenCheck.currentUsage - estimatedTokens
+      remainingTokens: 999999 // Token limits disabled
     });
   } catch (error) {
     console.error('Generate quiz error:', error);
     
-    if (error.message.includes('token limit')) {
-      return res.status(429).json({ 
-        message: error.message,
-        type: 'TOKEN_LIMIT_EXCEEDED'
-      });
-    }
+    // Token limit check disabled
+    // if (error.message.includes('token limit')) {
+    //   return res.status(429).json({ 
+    //     message: error.message,
+    //     type: 'TOKEN_LIMIT_EXCEEDED'
+    //   });
+    // }
     
     res.status(500).json({ message: 'Failed to generate quiz' });
   }
@@ -214,12 +218,13 @@ Return improved version as JSON:
   } catch (error) {
     console.error('Improve card error:', error);
     
-    if (error.message.includes('token limit')) {
-      return res.status(429).json({ 
-        message: error.message,
-        type: 'TOKEN_LIMIT_EXCEEDED'
-      });
-    }
+    // Token limit check disabled
+    // if (error.message.includes('token limit')) {
+    //   return res.status(429).json({ 
+    //     message: error.message,
+    //     type: 'TOKEN_LIMIT_EXCEEDED'
+    //   });
+    // }
     
     res.status(500).json({ message: 'Failed to improve card' });
   }

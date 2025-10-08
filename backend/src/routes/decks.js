@@ -179,10 +179,13 @@ router.delete('/:id', async (req, res) => {
 
 // Generate deck from AI
 router.post('/generate', [
-  body('topic').isLength({ min: 1, max: 500 }).trim(),
+  body('topic').optional().isLength({ min: 1, max: 500 }).trim(),
+  body('text').optional().isLength({ min: 1, max: 10000 }).trim(),
+  body('url').optional().isURL(),
   body('cardCount').isInt({ min: 1, max: 50 }),
   body('difficulty').optional().isInt({ min: 1, max: 5 }),
-  body('category').optional().isLength({ max: 100 }).trim()
+  body('category').optional().isLength({ max: 100 }).trim(),
+  body('type').isIn(['topic', 'text', 'url'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -193,45 +196,76 @@ router.post('/generate', [
       });
     }
 
-    const { topic, cardCount, difficulty = 2, category } = req.body;
+    const { title, topic, text, url, cardCount, difficulty = 2, category, type } = req.body;
 
-    // Check user token limits
-    const dailyUsage = await db('users')
-      .where({ id: req.user.id })
-      .select(['tokens_used', 'daily_token_limit'])
-      .first();
-
-    const estimatedTokens = cardCount * 100; // Rough estimate
-    if (dailyUsage.tokens_used + estimatedTokens > dailyUsage.daily_token_limit) {
-      return res.status(429).json({ 
-        message: 'Daily token limit would be exceeded',
-        tokensRequired: estimatedTokens,
-        tokensRemaining: dailyUsage.daily_token_limit - dailyUsage.tokens_used
-      });
+    // Determine the content based on type
+    let content;
+    let deckTitle;
+    if (type === 'topic') {
+      if (!topic) {
+        return res.status(400).json({ message: 'Topic is required for topic generation' });
+      }
+      content = topic;
+      deckTitle = title || `${topic} - AI Generated`;
+    } else if (type === 'text') {
+      if (!text) {
+        return res.status(400).json({ message: 'Text content is required for text generation' });
+      }
+      content = text;
+      deckTitle = title || `Text Content - AI Generated`;
+    } else if (type === 'url') {
+      if (!url) {
+        return res.status(400).json({ message: 'URL is required for URL generation' });
+      }
+      content = url;
+      deckTitle = title || `${url} - AI Generated`;
+    } else {
+      return res.status(400).json({ message: 'Invalid generation type' });
     }
 
-    // Create deck first
-    const deckTitle = `${topic} - AI Generated`;
-    const [deck] = await db('decks')
-      .insert({
-        user_id: req.user.id,
-        title: deckTitle,
-        description: `AI-generated flashcards for ${topic}`,
-        category: category || 'AI Generated',
-        difficulty_level: difficulty,
-        ai_generated: true,
-        source_prompt: topic
-      })
-      .returning('*');
+    // Check user token limits - DISABLED FOR NOW
+    // const dailyUsage = await db('users')
+    //   .where({ id: req.user.id })
+    //   .select(['tokens_used', 'daily_token_limit'])
+    //   .first();
 
-    // Generate cards directly without queue
+    const estimatedTokens = cardCount * 100; // Rough estimate
+    // if (dailyUsage.tokens_used + estimatedTokens > dailyUsage.daily_token_limit) {
+    //   return res.status(429).json({ 
+    //     message: 'Daily token limit would be exceeded',
+    //     tokensRequired: estimatedTokens,
+    //     tokensRemaining: dailyUsage.daily_token_limit - dailyUsage.tokens_used
+    //   });
+    // }
+
+    // Use a database transaction to ensure atomicity
+    const trx = await db.transaction();
+    
     try {
+      // Create deck first
+      const [deck] = await trx('decks')
+        .insert({
+          user_id: req.user.id,
+          title: deckTitle,
+          description: `AI-generated flashcards for ${type === 'topic' ? topic : type === 'text' ? 'text content' : 'web content'}`,
+          category: category || 'AI Generated',
+          difficulty_level: difficulty,
+          ai_generated: true,
+          source_prompt: content
+        })
+        .returning('*');
+
+      console.log(`Starting card generation for deck ${deck.id} with ${cardCount} cards...`);
+      
+      // Generate cards
       const cards = await openaiService.generateFlashcards(
-        topic,
+        content,
         cardCount,
         difficulty,
         req.user.id
       );
+      
+      console.log(`Generated ${cards.length} cards for deck ${deck.id}`);
       
       // Insert cards into database
       if (cards && cards.length > 0) {
@@ -245,9 +279,16 @@ router.post('/generate', [
           correct_option: card.correct_option !== undefined ? card.correct_option : null
         }));
         
-        await db('cards').insert(cardsToInsert);
+        await trx('cards').insert(cardsToInsert);
         console.log(`Successfully inserted ${cardsToInsert.length} cards for deck ${deck.id}`);
+      } else {
+        console.log(`No cards generated for deck ${deck.id}, rolling back transaction`);
+        await trx.rollback();
+        return res.status(500).json({ message: 'Failed to generate cards. Please try again.' });
       }
+      
+      // Commit transaction
+      await trx.commit();
       
       res.json({
         message: 'Deck generated successfully',
@@ -256,9 +297,9 @@ router.post('/generate', [
         estimatedTokens
       });
     } catch (genError) {
-      console.error('Card generation error:', genError);
-      // Delete the empty deck if card generation failed
-      await db('decks').where({ id: deck.id }).del();
+      console.error('Deck generation error:', genError);
+      // Rollback transaction on any error
+      await trx.rollback();
       throw genError;
     }
   } catch (error) {

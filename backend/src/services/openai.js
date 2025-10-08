@@ -38,9 +38,10 @@ class OpenAIService {
     const dailyUsage = await redis.get(dailyKey) || 0;
     const currentUsage = parseInt(dailyUsage);
 
-    if (currentUsage + estimatedTokens > user.daily_token_limit) {
-      throw new Error(`Daily token limit exceeded. Used: ${currentUsage}, Limit: ${user.daily_token_limit}, Required: ${estimatedTokens}`);
-    }
+    // Token limit check disabled
+    // if (currentUsage + estimatedTokens > user.daily_token_limit) {
+    //   throw new Error(`Daily token limit exceeded. Used: ${currentUsage}, Limit: ${user.daily_token_limit}, Required: ${estimatedTokens}`);
+    // }
 
     return { currentUsage, dailyLimit: user.daily_token_limit };
   }
@@ -83,10 +84,10 @@ class OpenAIService {
       this.maxTokensPerRequest
     );
 
-    // Check token limits if userId provided
-    if (userId) {
-      await this.checkTokenLimit(userId, estimatedTokens);
-    }
+    // Check token limits if userId provided - DISABLED
+    // if (userId) {
+    //   await this.checkTokenLimit(userId, estimatedTokens);
+    // }
 
     // Generate new response
     const response = await this.generateResponse(prompt, options);
@@ -248,7 +249,7 @@ Count: ${count}
 Difficulty: ${difficulty}`;
 
     const options = {
-      maxTokens: Math.min(count * 150, 1500), // Increase token limit to avoid truncation
+      maxTokens: Math.min(count * 200, 3000), // Increase token limit further for larger requests
       temperature: 0.7,
       jsonMode: false,
       cacheTTL: 2592000,
@@ -259,10 +260,11 @@ Difficulty: ${difficulty}`;
 
     // Try up to 3 times to get a valid response
     for (let attempt = 1; attempt <= 3; attempt++) {
+      let response = null;
       try {
         console.log(`Attempt ${attempt} to generate flashcards for topic: ${topic}`);
         
-        const response = await this.getOrGenerateResponse(prompt, 'generateCards', options, userId);
+        response = await this.getOrGenerateResponse(prompt, 'generateCards', options, userId);
         
         console.log('Raw OpenAI response:', response.content);
         
