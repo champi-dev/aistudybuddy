@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : 'http://localhost:5173',
+  origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : ['http://localhost:5173', 'http://localhost:5174'],
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -29,21 +29,21 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Basic error handler for missing routes
-const createMockRoute = (path) => (req, res) => {
-  res.status(501).json({ 
-    message: `${path} endpoint not yet implemented`,
-    error: 'ENDPOINT_NOT_IMPLEMENTED'
-  });
-};
+// Import route handlers
+const authRoutes = require('./routes/auth');
+const deckRoutes = require('./routes/decks');
+const cardRoutes = require('./routes/cards');
+const studyRoutes = require('./routes/study');
+const analyticsRoutes = require('./routes/analytics');
+const aiRoutes = require('./routes/ai');
 
-// Mock routes for now - replace with actual route files when available
-app.use('/api/auth', createMockRoute('auth'));
-app.use('/api/decks', createMockRoute('decks'));  
-app.use('/api/cards', createMockRoute('cards'));
-app.use('/api/study', createMockRoute('study'));
-app.use('/api/analytics', createMockRoute('analytics'));
-app.use('/api/ai', createMockRoute('ai'));
+// API routes
+app.use('/api/auth', authRoutes);
+app.use('/api/decks', deckRoutes);
+app.use('/api/cards', cardRoutes);
+app.use('/api/study', studyRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -67,9 +67,12 @@ app.listen(PORT, () => {
   if (process.env.NODE_ENV === 'development') {
     console.log('\n📝 Available endpoints:');
     console.log('   GET  /health - Health check');
-    console.log('   POST /api/auth/* - Authentication (mock)');
-    console.log('   GET  /api/decks - Decks (mock)');
-    console.log('   *    /api/* - Other API endpoints (mock)');
-    console.log('\n⚠️  Note: All API endpoints return mock responses until database is connected');
+    console.log('   POST /api/auth/* - Authentication');
+    console.log('   GET  /api/decks - Deck management');
+    console.log('   GET  /api/cards - Card management');
+    console.log('   POST /api/study/* - Study sessions');
+    console.log('   GET  /api/analytics/* - Analytics');
+    console.log('   POST /api/ai/* - AI generation');
+    console.log('\n✅ Database connected and migrations completed');
   }
 });

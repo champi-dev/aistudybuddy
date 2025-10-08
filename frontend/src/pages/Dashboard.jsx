@@ -7,6 +7,8 @@ import CreateDeckModal from '../components/CreateDeckModal'
 import GenerateDeckModal from '../components/GenerateDeckModal'
 import { useDecks } from '../hooks/useDecks'
 import { useAuthStore } from '../stores/authStore'
+import { useQuery } from '@tanstack/react-query'
+import api from '../services/api'
 
 export default function Dashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -20,15 +22,24 @@ export default function Dashboard() {
     category: selectedCategory !== 'all' ? selectedCategory : undefined
   })
 
+  // Fetch real analytics data
+  const { data: analytics } = useQuery({
+    queryKey: ['analytics'],
+    queryFn: () => api.get('/analytics/progress').then(res => res.data),
+    enabled: !!user,
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always'
+  })
+
   // Extract unique categories from decks
   const categories = ['all', ...new Set(decks.map(deck => deck.category).filter(Boolean))]
 
-  // Mock stats for now - these would come from analytics API
-  const mockStats = {
+  // Use real analytics data instead of mock
+  const stats = {
     totalDecks: decks.length,
-    totalCards: decks.reduce((sum, deck) => sum + (deck.cardCount || 0), 0),
-    studyStreak: 7,
-    weeklyAccuracy: 85
+    totalCards: analytics?.totalStats?.totalCardsStudied || 0,
+    studyStreak: analytics?.streaks?.current || 0,
+    weeklyAccuracy: analytics?.totalStats?.averageAccuracy || 0
   }
 
   return (
@@ -45,7 +56,7 @@ export default function Dashboard() {
           <div className="flex items-center">
             <BookOpen className="h-8 w-8 text-primary" />
             <div className="ml-4">
-              <p className="text-2xl font-bold text-text-primary">{mockStats.totalDecks}</p>
+              <p className="text-2xl font-bold text-text-primary">{stats.totalDecks}</p>
               <p className="text-text-secondary">Total Decks</p>
             </div>
           </div>
@@ -55,7 +66,7 @@ export default function Dashboard() {
           <div className="flex items-center">
             <Clock className="h-8 w-8 text-success" />
             <div className="ml-4">
-              <p className="text-2xl font-bold text-text-primary">{mockStats.studyStreak}</p>
+              <p className="text-2xl font-bold text-text-primary">{stats.studyStreak}</p>
               <p className="text-text-secondary">Day Streak</p>
             </div>
           </div>
@@ -65,7 +76,7 @@ export default function Dashboard() {
           <div className="flex items-center">
             <TrendingUp className="h-8 w-8 text-secondary" />
             <div className="ml-4">
-              <p className="text-2xl font-bold text-text-primary">{mockStats.weeklyAccuracy}%</p>
+              <p className="text-2xl font-bold text-text-primary">{stats.weeklyAccuracy}%</p>
               <p className="text-text-secondary">Weekly Accuracy</p>
             </div>
           </div>
@@ -75,7 +86,7 @@ export default function Dashboard() {
           <div className="flex items-center">
             <Sparkles className="h-8 w-8 text-warning" />
             <div className="ml-4">
-              <p className="text-2xl font-bold text-text-primary">{mockStats.totalCards}</p>
+              <p className="text-2xl font-bold text-text-primary">{stats.totalCards}</p>
               <p className="text-text-secondary">Cards Studied</p>
             </div>
           </div>
@@ -175,21 +186,24 @@ export default function Dashboard() {
       <div className="bg-surface rounded-lg p-6 border border-surface-light">
         <h2 className="text-lg font-semibold text-text-primary mb-4">Recent Activity</h2>
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-text-primary">Studied JavaScript Fundamentals</p>
-              <p className="text-sm text-text-secondary">2 hours ago • 15 cards</p>
+          {analytics?.recentActivity?.length > 0 ? (
+            analytics.recentActivity.slice(0, 3).map((activity, index) => (
+              <div key={index} className="flex items-center justify-between">
+                <div>
+                  <p className="text-text-primary">Studied {activity.deckTitle || 'Unknown Deck'}</p>
+                  <p className="text-sm text-text-secondary">
+                    {new Date(activity.date).toLocaleDateString()} • {activity.cards} cards
+                  </p>
+                </div>
+                <div className="text-success text-sm font-medium">{activity.accuracy}% accuracy</div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-text-secondary">No recent study activity</p>
+              <p className="text-sm text-text-secondary mt-2">Start studying to see your progress here!</p>
             </div>
-            <div className="text-success text-sm font-medium">92% accuracy</div>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-text-primary">Generated React Hooks deck</p>
-              <p className="text-sm text-text-secondary">1 day ago • 18 cards</p>
-            </div>
-            <div className="text-primary text-sm font-medium">AI Generated</div>
-          </div>
+          )}
           
           <div className="text-center pt-4">
             <Link

@@ -77,7 +77,11 @@ class BatchProcessor {
                 difficulty: card.difficulty || item.difficulty
               }));
               
+              console.log(`Inserting ${cardsToInsert.length} cards for deck ${item.deckId}:`, cardsToInsert);
               await db('cards').insert(cardsToInsert);
+              console.log(`Successfully inserted ${cardsToInsert.length} cards`);
+            } else {
+              console.log(`Skipping card insertion: deckId=${item.deckId}, cards.length=${cards.length}`);
             }
             
             item.resolve({ cards, message: 'Cards generated successfully' });
@@ -118,12 +122,14 @@ const batchProcessor = new BatchProcessor();
 
 // Queue processors
 aiQueue.process('generateCards', async (job) => {
-  const { topic, count, difficulty } = job.data;
-  console.log(`Generating ${count} cards for topic: ${topic}`);
+  const { deckId, userId, topic, count, difficulty } = job.data;
+  console.log(`Generating ${count} cards for topic: ${topic} (deckId: ${deckId})`);
   
   // Process card generation
   return batchProcessor.add({
     type: 'generateCards',
+    deckId,
+    userId,
     topic,
     count,
     difficulty,

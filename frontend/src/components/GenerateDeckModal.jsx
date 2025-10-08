@@ -4,12 +4,15 @@ import { X, Sparkles, Zap, FileText, Link as LinkIcon, AlertCircle } from 'lucid
 import Button from './ui/Button'
 import Input from './ui/Input'
 import { useAuthStore } from '../stores/authStore'
+import { useGenerateDeck } from '../hooks/useDecks'
+import toast from 'react-hot-toast'
 
 export default function GenerateDeckModal({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState('topic')
   const [isGenerating, setIsGenerating] = useState(false)
   const [estimatedTokens, setEstimatedTokens] = useState(0)
-  const { user, hasTokens } = useAuthStore()
+  const { user, hasTokens, updateTokenUsage } = useAuthStore()
+  const generateDeckMutation = useGenerateDeck()
   
   const {
     register,
@@ -53,25 +56,34 @@ export default function GenerateDeckModal({ isOpen, onClose }) {
 
   const onSubmit = async (data) => {
     if (!hasTokens(estimatedTokens)) {
-      // TODO: Show insufficient tokens error
+      toast.error(`Insufficient tokens. You need ${estimatedTokens} tokens but only have ${user?.dailyTokenLimit - user?.tokensUsed} remaining.`)
       return
     }
 
     setIsGenerating(true)
     
     try {
-      // TODO: API call to generate deck
-      console.log('Generating deck:', { ...data, activeTab, estimatedTokens })
+      // Prepare generation data based on active tab
+      const generationData = {
+        cardCount: data.cardCount,
+        difficulty: data.difficulty,
+        type: activeTab,
+        ...data
+      }
+
+      console.log('Generating deck:', generationData)
+      const result = await generateDeckMutation.mutateAsync(generationData)
       
-      // Simulate generation process
-      await new Promise(resolve => setTimeout(resolve, 3000))
+      // Update token usage
+      updateTokenUsage(estimatedTokens)
       
       reset()
       onClose()
-      // TODO: Show success toast and redirect to generated deck
+      toast.success('Deck generation started! Check your dashboard for the new deck.')
+      
     } catch (error) {
       console.error('Error generating deck:', error)
-      // TODO: Show error toast
+      toast.error('Failed to generate deck. Please try again.')
     } finally {
       setIsGenerating(false)
     }

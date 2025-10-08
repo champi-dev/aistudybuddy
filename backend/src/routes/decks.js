@@ -2,7 +2,8 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const db = require('../config/database');
 const { authenticateToken, requireAuth } = require('../middleware/auth');
-const { aiQueue } = require('../config/queue');
+// const { aiQueue } = require('../config/queue'); // Disabled queue for now
+const openaiService = require('../services/openai');
 const crypto = require('crypto');
 
 const router = express.Router();
@@ -47,7 +48,7 @@ router.get('/', async (req, res) => {
       deck.cardCount = parseInt(cardCount.count);
     }
 
-    res.json({ decks });
+    res.json(decks);
   } catch (error) {
     console.error('Get decks error:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -82,6 +83,7 @@ router.post('/', [
   body('title').isLength({ min: 1, max: 255 }).trim(),
   body('description').optional().isLength({ max: 1000 }).trim(),
   body('category').optional().isLength({ max: 100 }).trim(),
+  body('difficulty').optional().isInt({ min: 1, max: 5 }),
   body('difficulty_level').optional().isInt({ min: 1, max: 5 })
 ], async (req, res) => {
   try {
@@ -93,7 +95,7 @@ router.post('/', [
       });
     }
 
-    const { title, description, category, difficulty_level } = req.body;
+    const { title, description, category, difficulty, difficulty_level } = req.body;
 
     const [deck] = await db('decks')
       .insert({
@@ -101,7 +103,7 @@ router.post('/', [
         title,
         description,
         category,
-        difficulty_level: difficulty_level || 1
+        difficulty_level: difficulty || difficulty_level || 1
       })
       .returning('*');
 
@@ -222,25 +224,43 @@ router.post('/generate', [
       })
       .returning('*');
 
-    // Queue AI generation job
-    const job = await aiQueue.add('generateCards', {
-      deckId: deck.id,
-      userId: req.user.id,
-      topic,
-      count: cardCount,
-      difficulty
-    }, {
-      attempts: 3,
-      backoff: 'exponential',
-      delay: 2000
-    });
-
-    res.status(202).json({
-      message: 'Deck generation started',
-      deck,
-      jobId: job.id,
-      estimatedTokens
-    });
+    // Generate cards directly without queue
+    try {
+      const cards = await openaiService.generateFlashcards(
+        topic,
+        cardCount,
+        difficulty,
+        req.user.id
+      );
+      
+      // Insert cards into database
+      if (cards && cards.length > 0) {
+        const cardsToInsert = cards.map(card => ({
+          deck_id: deck.id,
+          front: card.front,
+          back: card.back,
+          difficulty: card.difficulty || difficulty,
+          is_quiz: card.is_quiz || false,
+          options: card.options ? JSON.stringify(card.options) : null,
+          correct_option: card.correct_option !== undefined ? card.correct_option : null
+        }));
+        
+        await db('cards').insert(cardsToInsert);
+        console.log(`Successfully inserted ${cardsToInsert.length} cards for deck ${deck.id}`);
+      }
+      
+      res.json({
+        message: 'Deck generated successfully',
+        deck,
+        cardsGenerated: cards.length,
+        estimatedTokens
+      });
+    } catch (genError) {
+      console.error('Card generation error:', genError);
+      // Delete the empty deck if card generation failed
+      await db('decks').where({ id: deck.id }).del();
+      throw genError;
+    }
   } catch (error) {
     console.error('Generate deck error:', error);
     res.status(500).json({ message: 'Internal server error' });

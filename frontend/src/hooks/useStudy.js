@@ -5,9 +5,9 @@ import toast from 'react-hot-toast'
 // Start study session
 export function useStartStudy() {
   return useMutation({
-    mutationFn: studyAPI.start,
-    onSuccess: (data) => {
-      return data.data
+    mutationFn: async ({ deckId }) => {
+      const response = await studyAPI.start(deckId)
+      return response.data || response
     },
     onError: (error) => {
       const message = error.response?.data?.message || 'Failed to start study session'

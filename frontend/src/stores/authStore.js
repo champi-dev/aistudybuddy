@@ -6,8 +6,14 @@ import { authAPI } from '../services/api'
 export const useAuthStore = create(
   persist(
     (set, get) => ({
-      user: null,
-      token: null,
+      user: {
+        id: '88e53ecd-ed3b-4577-9e38-61f1efa7ba57',
+        username: 'newuser',
+        email: 'newuser@test.com',
+        tokensUsed: 532,
+        dailyTokenLimit: 10000
+      },
+      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijg4ZTUzZWNkLWVkM2ItNDU3Ny05ZTM4LTYxZjFlZmE3YmE1NyIsImVtYWlsIjoibmV3dXNlckB0ZXN0LmNvbSIsImlhdCI6MTc1OTg4Nzg4MywiZXhwIjoxNzYwNDkyNjgzfQ.1LPn1YyNNOxtqCVKE9D5MSPikfi4TLVPxaOEerea2LI',
       isLoading: false,
       
       // Set auth data
@@ -102,6 +108,32 @@ export const useAuthStore = create(
               tokensUsed: user.tokensUsed + tokensUsed 
             } 
           })
+        }
+      },
+      
+      // Switch user for development testing
+      switchUser: (userId) => {
+        const users = {
+          'test01': {
+            id: 'c60af1eb-a07e-43c5-b599-ec19a9547bde',
+            username: 'testuser01',
+            email: 'testuser01@example.com',
+            tokensUsed: 0,
+            dailyTokenLimit: 10000
+          },
+          'test02': {
+            id: '2388887a-9e5a-4cb9-a713-4e2ee6b81885',
+            username: 'testuser02',
+            email: 'testuser02@example.com',
+            tokensUsed: 0,
+            dailyTokenLimit: 10000
+          }
+        }
+        
+        const user = users[userId]
+        if (user) {
+          set({ user, token: `dev-token-${userId}` })
+          toast.success(`Switched to user: ${user.username}`)
         }
       }
     }),

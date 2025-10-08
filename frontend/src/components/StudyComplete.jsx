@@ -133,7 +133,7 @@ export default function StudyComplete({ deck, stats, onRestart, onExit }) {
               <p className="text-sm text-success">
                 🔥 Great session! You're building strong knowledge foundations.
               </p>
-            </div>
+            </motion.div>
           )}
         </div>
       </motion.div>

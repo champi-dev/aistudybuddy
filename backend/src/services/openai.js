@@ -156,42 +156,62 @@ class OpenAIService {
 
   // Generate flashcards from topic
   async generateFlashcards(topic, count, difficulty, userId) {
-    const prompt = `Create ${count} flashcards for the topic "${topic}" at difficulty level ${difficulty}/5.
+    const prompt = `Create exactly ${count} flashcards for the topic "${topic}" at difficulty level ${difficulty}/5.
 
-Return ONLY a JSON array of flashcard objects. Each object should have:
+You must return ONLY a JSON array (starting with [ and ending with ]) containing flashcard objects. Do not include any explanatory text, markdown formatting, or other content.
+
+Each flashcard object must have exactly these fields:
 - "front": The question or prompt (max 200 chars)
-- "back": The answer or explanation (max 400 chars)
+- "back": The answer or explanation (max 400 chars)  
 - "difficulty": Number from 1-5
 
-The flashcards should be educational, accurate, and appropriate for difficulty level ${difficulty}.
-
-Example format:
+Example response:
 [
   {
     "front": "What is the capital of France?",
     "back": "Paris - the largest city and political center of France, located in north-central France along the Seine River.",
     "difficulty": 2
   }
-]`;
+]
+
+Topic: ${topic}
+Count: ${count}
+Difficulty: ${difficulty}`;
 
     const options = {
-      maxTokens: Math.min(count * 80, 800),
-      temperature: 0.8,
-      jsonMode: true,
+      maxTokens: Math.min(count * 100, 1000),
+      temperature: 0.7,
+      jsonMode: false, // Disable JSON mode to allow array responses
       cacheTTL: 2592000, // 30 days for flashcards
-      systemPrompt: 'You are an expert educator creating flashcards. Always return valid JSON arrays only.'
+      systemPrompt: 'You are a flashcard generator. You must return only valid JSON arrays. Never include explanatory text or markdown formatting. The response must start with [ and end with ].'
     };
 
     const response = await this.getOrGenerateResponse(prompt, 'generateCards', options, userId);
     
     try {
-      const cards = JSON.parse(response.content);
+      console.log('Raw OpenAI response:', response.content);
+      
+      // Try to clean up the response if it has markdown formatting
+      let jsonString = response.content.trim();
+      if (jsonString.startsWith('```json')) {
+        jsonString = jsonString.slice(7);
+      }
+      if (jsonString.endsWith('```')) {
+        jsonString = jsonString.slice(0, -3);
+      }
+      jsonString = jsonString.trim();
+      
+      console.log('Cleaned JSON string:', jsonString);
+      
+      const cards = JSON.parse(jsonString);
       if (!Array.isArray(cards)) {
+        console.error('Parsed data is not an array:', cards);
         throw new Error('Response is not an array');
       }
       return cards.slice(0, count); // Ensure we don't exceed requested count
     } catch (error) {
       console.error('Failed to parse flashcards JSON:', error);
+      console.error('Raw response was:', response.content);
       throw new Error('Failed to generate valid flashcards');
     }
   }

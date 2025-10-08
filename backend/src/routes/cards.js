@@ -25,7 +25,8 @@ router.get('/deck/:deckId', async (req, res) => {
       .where({ deck_id: req.params.deckId })
       .select([
         'id', 'front', 'back', 'hint_1', 'hint_2', 'hint_3',
-        'explanation', 'difficulty', 'created_at'
+        'explanation', 'difficulty', 'created_at', 
+        'is_quiz', 'options', 'correct_option'
       ])
       .orderBy('created_at', 'asc');
 
@@ -46,6 +47,7 @@ router.get('/:id', async (req, res) => {
         'cards.id', 'cards.front', 'cards.back', 
         'cards.hint_1', 'cards.hint_2', 'cards.hint_3',
         'cards.explanation', 'cards.difficulty', 'cards.created_at',
+        'cards.is_quiz', 'cards.options', 'cards.correct_option',
         'decks.title as deck_title'
       ])
       .first();
@@ -70,7 +72,10 @@ router.post('/', [
   body('hint_2').optional().isLength({ max: 500 }).trim(),
   body('hint_3').optional().isLength({ max: 500 }).trim(),
   body('explanation').optional().isLength({ max: 1000 }).trim(),
-  body('difficulty').optional().isInt({ min: 1, max: 5 })
+  body('difficulty').optional().isInt({ min: 1, max: 5 }),
+  body('is_quiz').optional().isBoolean(),
+  body('options').optional().isArray({ min: 2, max: 6 }),
+  body('correct_option').optional().isInt({ min: 0, max: 5 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -83,7 +88,7 @@ router.post('/', [
 
     const { 
       deck_id, front, back, hint_1, hint_2, hint_3, 
-      explanation, difficulty 
+      explanation, difficulty, is_quiz, options, correct_option 
     } = req.body;
 
     // Verify deck ownership
@@ -104,7 +109,10 @@ router.post('/', [
         hint_2,
         hint_3,
         explanation,
-        difficulty: difficulty || 1
+        difficulty: difficulty || 1,
+        is_quiz: is_quiz || false,
+        options: options ? JSON.stringify(options) : null,
+        correct_option: correct_option !== undefined ? correct_option : null
       })
       .returning('*');
 
@@ -126,7 +134,10 @@ router.put('/:id', [
   body('hint_2').optional().isLength({ max: 500 }).trim(),
   body('hint_3').optional().isLength({ max: 500 }).trim(),
   body('explanation').optional().isLength({ max: 1000 }).trim(),
-  body('difficulty').optional().isInt({ min: 1, max: 5 })
+  body('difficulty').optional().isInt({ min: 1, max: 5 }),
+  body('is_quiz').optional().isBoolean(),
+  body('options').optional().isArray({ min: 2, max: 6 }),
+  body('correct_option').optional().isInt({ min: 0, max: 5 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -137,7 +148,7 @@ router.put('/:id', [
       });
     }
 
-    const { front, back, hint_1, hint_2, hint_3, explanation, difficulty } = req.body;
+    const { front, back, hint_1, hint_2, hint_3, explanation, difficulty, is_quiz, options, correct_option } = req.body;
 
     // Verify card ownership through deck
     const cardExists = await db('cards')
@@ -149,17 +160,23 @@ router.put('/:id', [
       return res.status(404).json({ message: 'Card not found' });
     }
 
+    const updateData = {
+      front,
+      back,
+      hint_1,
+      hint_2,
+      hint_3,
+      explanation,
+      difficulty
+    };
+    
+    if (is_quiz !== undefined) updateData.is_quiz = is_quiz;
+    if (options !== undefined) updateData.options = JSON.stringify(options);
+    if (correct_option !== undefined) updateData.correct_option = correct_option;
+    
     const [card] = await db('cards')
       .where({ id: req.params.id })
-      .update({
-        front,
-        back,
-        hint_1,
-        hint_2,
-        hint_3,
-        explanation,
-        difficulty
-      })
+      .update(updateData)
       .returning('*');
 
     res.json({ 
@@ -200,7 +217,10 @@ router.post('/batch', [
   body('cards').isArray({ min: 1, max: 50 }),
   body('cards.*.front').isLength({ min: 1, max: 1000 }).trim(),
   body('cards.*.back').isLength({ min: 1, max: 1000 }).trim(),
-  body('cards.*.difficulty').optional().isInt({ min: 1, max: 5 })
+  body('cards.*.difficulty').optional().isInt({ min: 1, max: 5 }),
+  body('cards.*.is_quiz').optional().isBoolean(),
+  body('cards.*.options').optional().isArray({ min: 2, max: 6 }),
+  body('cards.*.correct_option').optional().isInt({ min: 0, max: 5 })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -231,7 +251,10 @@ router.post('/batch', [
       hint_2: card.hint_2 || null,
       hint_3: card.hint_3 || null,
       explanation: card.explanation || null,
-      difficulty: card.difficulty || 1
+      difficulty: card.difficulty || 1,
+      is_quiz: card.is_quiz || false,
+      options: card.options ? JSON.stringify(card.options) : null,
+      correct_option: card.correct_option !== undefined ? card.correct_option : null
     }));
 
     const insertedCards = await db('cards')

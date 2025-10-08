@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, Bell, User, LogOut, Settings } from 'lucide-react'
+import { User, LogOut, Settings } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import Button from './ui/Button'
 
@@ -22,25 +22,8 @@ export default function TopNav() {
           </h1>
         </div>
 
-        {/* Search Bar */}
-        <div className="flex-1 max-w-md mx-8">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-secondary" />
-            <input
-              type="text"
-              placeholder="Search decks..."
-              className="w-full pl-10 pr-4 py-2 bg-background border border-surface-light rounded-lg text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-            />
-          </div>
-        </div>
-
         {/* Right Side */}
         <div className="flex items-center space-x-4">
-          {/* Notifications */}
-          <button className="p-2 text-text-secondary hover:text-text-primary rounded-lg hover:bg-surface-light">
-            <Bell className="h-5 w-5" />
-          </button>
-
           {/* User Menu */}
           <div className="relative">
             <button

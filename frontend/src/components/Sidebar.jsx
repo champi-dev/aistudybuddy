@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { 
   LayoutDashboard, 
@@ -8,13 +9,14 @@ import {
   Plus
 } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
+import CreateDeckModal from './CreateDeckModal'
 
 export default function Sidebar() {
   const { user } = useAuthStore()
+  const [showCreateModal, setShowCreateModal] = useState(false)
   
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Study', href: '/study', icon: BookOpen },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
     { name: 'Settings', href: '/settings', icon: Settings }
   ]
@@ -50,7 +52,9 @@ export default function Sidebar() {
             <p className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-2">
               Quick Actions
             </p>
-            <button className="w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-light">
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-light">
               <Plus className="h-5 w-5 mr-3" />
               Create Deck
             </button>
@@ -92,6 +96,12 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
+      
+      {/* Create Deck Modal */}
+      <CreateDeckModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+      />
     </aside>
   )
 }

@@ -2,6 +2,20 @@ const jwt = require('jsonwebtoken');
 const db = require('../config/database');
 
 const authenticateToken = async (req, res, next) => {
+  // Development bypass - check for dev-user-id header
+  if (process.env.NODE_ENV === 'development') {
+    const devUserId = req.headers['dev-user-id'];
+    if (devUserId) {
+      const user = await db('users').where({ id: devUserId }).first();
+      if (user) {
+        req.user = user;
+        return next();
+      }
+    }
+    
+    // Fallback to token-based auth even in development
+  }
+
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 

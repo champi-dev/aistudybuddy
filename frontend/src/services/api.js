@@ -11,14 +11,21 @@ const api = axios.create({
   }
 })
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token and dev user ID
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('auth-storage')
   if (token) {
     try {
       const parsed = JSON.parse(token)
+      
+      // Add auth token if available
       if (parsed.state?.token) {
         config.headers.Authorization = `Bearer ${parsed.state.token}`
+      }
+      
+      // In development mode, add dev-user-id header
+      if (import.meta.env.DEV && parsed.state?.user?.id) {
+        config.headers['dev-user-id'] = parsed.state.user.id
       }
     } catch (error) {
       console.error('Error parsing auth token:', error)
@@ -31,7 +38,30 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message = error.response?.data?.message || 'An error occurred'
+    let message = 'An error occurred'
+    
+    if (error.code === 'NETWORK_ERROR' || error.code === 'ERR_NETWORK') {
+      message = 'Network error. Please check your connection and try again.'
+    } else if (error.code === 'ECONNABORTED') {
+      message = 'Request timeout. Please try again.'
+    } else if (error.response) {
+      // Server responded with error status
+      const status = error.response.status
+      message = error.response.data?.message || `Server error (${status})`
+      
+      if (status === 403) {
+        message = 'Access denied. Please check your permissions.'
+      } else if (status === 404) {
+        message = 'Resource not found.'
+      } else if (status === 429) {
+        message = 'Too many requests. Please wait and try again.'
+      } else if (status >= 500) {
+        message = 'Server error. Please try again later.'
+      }
+    } else if (error.request) {
+      // Request was made but no response received
+      message = 'No response from server. Please check your connection.'
+    }
     
     // Don't show error toast for authentication errors (handled by auth store)
     if (error.response?.status !== 401) {

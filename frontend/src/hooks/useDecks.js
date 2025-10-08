@@ -16,8 +16,10 @@ export function useDecks(filters = {}) {
   return useQuery({
     queryKey: deckKeys.list(filters),
     queryFn: () => decksAPI.list(filters),
-    select: (data) => data.data.decks,
+    select: (data) => data.data,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always'
   })
 }
 
@@ -28,6 +30,8 @@ export function useDeck(id) {
     queryFn: () => decksAPI.get(id),
     select: (data) => data.data,
     enabled: !!id,
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
   })
 }
 

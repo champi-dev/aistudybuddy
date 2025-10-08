@@ -37,7 +37,7 @@ router.post('/start', [
     // Get cards for this deck
     const cards = await db('cards')
       .where({ deck_id: deckId })
-      .select(['id', 'front', 'back', 'difficulty'])
+      .select(['id', 'front', 'back', 'difficulty', 'is_quiz', 'options', 'correct_option'])
       .orderBy(db.raw('RANDOM()')) // Randomize card order
       .limit(50); // Limit session size
 
@@ -68,8 +68,11 @@ router.post('/start', [
       cards: cards.map(card => ({
         id: card.id,
         front: card.front,
-        difficulty: card.difficulty
-        // Don't send back until user requests it
+        back: card.back,
+        difficulty: card.difficulty,
+        is_quiz: card.is_quiz || false,
+        options: card.options || null,
+        correct_option: card.correct_option !== null ? card.correct_option : null
       }))
     });
   } catch (error) {
@@ -83,7 +86,8 @@ router.post('/answer', [
   body('sessionId').isUUID(),
   body('cardId').isUUID(),
   body('userAnswer').optional().isLength({ max: 1000 }).trim(),
-  body('isCorrect').isBoolean(),
+  body('selectedOption').optional().isInt({ min: 0, max: 5 }),
+  body('isCorrect').optional().isBoolean(),
   body('timeSpent').isInt({ min: 0 }),
   body('hintsUsed').optional().isInt({ min: 0, max: 3 })
 ], async (req, res) => {
@@ -96,7 +100,8 @@ router.post('/answer', [
       });
     }
 
-    const { sessionId, cardId, userAnswer, isCorrect, timeSpent, hintsUsed = 0 } = req.body;
+    const { sessionId, cardId, userAnswer, selectedOption, timeSpent, hintsUsed = 0 } = req.body;
+    let { isCorrect } = req.body;
 
     // Verify session ownership
     const session = await db('study_sessions')
@@ -119,6 +124,11 @@ router.post('/answer', [
     if (!card) {
       return res.status(404).json({ message: 'Card not found in session deck' });
     }
+    
+    // For quiz cards, determine correctness from selected option
+    if (card.is_quiz && selectedOption !== undefined) {
+      isCorrect = selectedOption === card.correct_option;
+    }
 
     // Check if this card was already answered in this session
     const existingAttempt = await db('card_attempts')
@@ -133,7 +143,7 @@ router.post('/answer', [
     await db('card_attempts').insert({
       session_id: sessionId,
       card_id: cardId,
-      user_answer: userAnswer,
+      user_answer: userAnswer || (selectedOption !== undefined ? `Option ${selectedOption}` : null),
       is_correct: isCorrect,
       hints_used: hintsUsed,
       time_spent: timeSpent

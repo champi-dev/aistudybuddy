@@ -15,22 +15,21 @@ router.get('/progress', async (req, res) => {
 
     // Total stats
     const totalStats = await db('study_sessions')
-      .where({ user_id: userId, completed_at: db.raw('IS NOT NULL') })
+      .where({ user_id: userId })
+      .whereNotNull('completed_at')
       .select([
         db.raw('COUNT(*) as total_sessions'),
         db.raw('SUM(cards_studied) as total_cards_studied'),
         db.raw('SUM(correct_answers) as total_correct'),
-        db.raw('AVG(CASE WHEN cards_studied > 0 THEN (correct_answers::float / cards_studied * 100) END) as avg_accuracy')
+        db.raw('AVG(CASE WHEN cards_studied > 0 THEN (correct_answers::decimal / cards_studied * 100) END) as avg_accuracy')
       ])
       .first();
 
     // Recent activity (last 30 days)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const recentActivity = await db('study_sessions')
-      .where({ 
-        user_id: userId, 
-        completed_at: db.raw('IS NOT NULL') 
-      })
+      .where({ user_id: userId })
+      .whereNotNull('completed_at')
       .where('started_at', '>=', thirtyDaysAgo)
       .select([
         db.raw('DATE(started_at) as date'),
@@ -44,10 +43,8 @@ router.get('/progress', async (req, res) => {
     // Most studied decks
     const topDecks = await db('study_sessions')
       .join('decks', 'study_sessions.deck_id', 'decks.id')
-      .where({ 
-        'study_sessions.user_id': userId,
-        'study_sessions.completed_at': db.raw('IS NOT NULL')
-      })
+      .where({ 'study_sessions.user_id': userId })
+      .whereNotNull('study_sessions.completed_at')
       .select([
         'decks.id',
         'decks.title',
@@ -62,10 +59,8 @@ router.get('/progress', async (req, res) => {
 
     // Study streaks
     const sessions = await db('study_sessions')
-      .where({ 
-        user_id: userId,
-        completed_at: db.raw('IS NOT NULL')
-      })
+      .where({ user_id: userId })
+      .whereNotNull('completed_at')
       .select([db.raw('DATE(started_at) as date')])
       .groupBy(db.raw('DATE(started_at)'))
       .orderBy('date', 'desc');
@@ -137,10 +132,8 @@ router.get('/streaks', async (req, res) => {
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
     
     const dailyStudy = await db('study_sessions')
-      .where({ 
-        user_id: userId,
-        completed_at: db.raw('IS NOT NULL')
-      })
+      .where({ user_id: userId })
+      .whereNotNull('completed_at')
       .where('started_at', '>=', ninetyDaysAgo)
       .select([
         db.raw('DATE(started_at) as date'),
@@ -222,10 +215,8 @@ router.get('/insights', async (req, res) => {
 
     // Get recent performance data
     const recentSessions = await db('study_sessions')
-      .where({ 
-        user_id: userId,
-        completed_at: db.raw('IS NOT NULL')
-      })
+      .where({ user_id: userId })
+      .whereNotNull('completed_at')
       .where('started_at', '>=', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
       .select([
         'cards_studied',

@@ -1,0 +1,88 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e5]:
+      - heading "AI Study Buddy" [level=1] [ref=e7]
+      - generic [ref=e9]:
+        - img [ref=e10]
+        - textbox "Search decks..." [ref=e13]
+      - button "newuser" [ref=e16] [cursor=pointer]:
+        - img [ref=e17]
+        - generic [ref=e20]: newuser
+  - generic [ref=e21]:
+    - complementary [ref=e22]:
+      - generic [ref=e23]:
+        - navigation [ref=e24]:
+          - link "Dashboard" [ref=e25] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e26]
+            - text: Dashboard
+          - link "Analytics" [ref=e31] [cursor=pointer]:
+            - /url: /analytics
+            - img [ref=e32]
+            - text: Analytics
+          - link "Settings" [ref=e34] [cursor=pointer]:
+            - /url: /settings
+            - img [ref=e35]
+            - text: Settings
+          - generic [ref=e38]:
+            - paragraph [ref=e39]: Quick Actions
+            - button "Create Deck" [ref=e40] [cursor=pointer]:
+              - img [ref=e41]
+              - text: Create Deck
+        - generic [ref=e43]:
+          - generic [ref=e44]:
+            - generic [ref=e45]:
+              - img [ref=e46]
+              - generic [ref=e48]: AI Tokens
+            - generic [ref=e49]: 532 / 10,000
+          - paragraph [ref=e52]: 95% remaining
+    - main [ref=e53]:
+      - generic [ref=e54]:
+        - generic [ref=e55]:
+          - heading "Welcome back, newuser!" [level=1] [ref=e56]
+          - paragraph [ref=e57]: Ready to continue your learning journey?
+        - generic [ref=e58]:
+          - generic [ref=e60]:
+            - img [ref=e61]
+            - generic [ref=e64]:
+              - paragraph [ref=e65]: "0"
+              - paragraph [ref=e66]: Total Decks
+          - generic [ref=e68]:
+            - img [ref=e69]
+            - generic [ref=e72]:
+              - paragraph [ref=e73]: "0"
+              - paragraph [ref=e74]: Day Streak
+          - generic [ref=e76]:
+            - img [ref=e77]
+            - generic [ref=e80]:
+              - paragraph [ref=e81]: 0%
+              - paragraph [ref=e82]: Weekly Accuracy
+          - generic [ref=e84]:
+            - img [ref=e85]
+            - generic [ref=e87]:
+              - paragraph [ref=e88]: "0"
+              - paragraph [ref=e89]: Cards Studied
+        - generic [ref=e90]:
+          - generic [ref=e91]:
+            - textbox "Search decks..." [ref=e92]
+            - combobox [ref=e93]:
+              - option "All" [selected]
+          - generic [ref=e94]:
+            - button "Create Deck" [ref=e95] [cursor=pointer]:
+              - img [ref=e96]
+              - text: Create Deck
+            - button "Generate with AI" [ref=e97] [cursor=pointer]:
+              - img [ref=e98]
+              - text: Generate with AI
+        - generic [ref=e113]:
+          - heading "Recent Activity" [level=2] [ref=e114]
+          - generic [ref=e115]:
+            - generic [ref=e116]:
+              - paragraph [ref=e117]: No recent study activity
+              - paragraph [ref=e118]: Start studying to see your progress here!
+            - link "View detailed analytics →" [ref=e120] [cursor=pointer]:
+              - /url: /analytics
+```
