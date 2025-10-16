@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
+import { createPortal } from 'react-dom'
 import { X, Sparkles } from 'lucide-react'
 import Button from './ui/Button'
 import Input from './ui/Input'
@@ -122,8 +123,8 @@ export default function CreateDeckModal({ isOpen, onClose }) {
 
   if (!isOpen) return null
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-50">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-[9999]">
       <div className="bg-surface rounded-lg sm:rounded-xl max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-surface-light sticky top-0 bg-surface z-10">
@@ -310,6 +311,7 @@ export default function CreateDeckModal({ isOpen, onClose }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
