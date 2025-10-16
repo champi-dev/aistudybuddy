@@ -12,12 +12,10 @@ import api from '../services/api'
 export default function Dashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('all')
-  
+
   const { user } = useAuthStore()
   const { data: decks = [], isLoading, error } = useDecks({
-    search: searchTerm,
-    category: selectedCategory !== 'all' ? selectedCategory : undefined
+    search: searchTerm
   })
 
   // Fetch real analytics data
@@ -29,9 +27,6 @@ export default function Dashboard() {
     refetchOnMount: 'always'
   })
 
-  // Extract unique categories from decks
-  const categories = ['all', ...new Set(decks.map(deck => deck.category).filter(Boolean))]
-
   // Use real analytics data instead of mock
   const stats = {
     totalDecks: decks.length,
@@ -41,91 +36,105 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-primary to-primary-dark rounded-xl p-6 text-white">
-        <h1 className="text-2xl font-bold mb-2">Welcome back, {user?.username}!</h1>
-        <p className="text-primary-100">Ready to continue your learning journey?</p>
+      <div className="bg-gradient-to-r from-primary to-primary-dark rounded-lg sm:rounded-xl p-4 sm:p-6 text-white">
+        <h1 className="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">Welcome back, {user?.username}!</h1>
+        <p className="text-sm sm:text-base text-primary-100">Ready to continue your learning journey?</p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-surface rounded-lg p-6 border border-surface-light">
-          <div className="flex items-center">
-            <BookOpen className="h-8 w-8 text-primary" />
-            <div className="ml-4">
-              <p className="text-2xl font-bold text-text-primary">{stats.totalDecks}</p>
-              <p className="text-text-secondary">Total Decks</p>
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="bg-surface rounded-lg p-3 sm:p-4 md:p-6 border border-surface-light">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center">
+            <BookOpen className="h-6 w-6 sm:h-8 sm:w-8 text-primary mb-2 sm:mb-0" />
+            <div className="sm:ml-3 md:ml-4">
+              <p className="text-xl sm:text-2xl font-bold text-text-primary">{stats.totalDecks}</p>
+              <p className="text-xs sm:text-sm text-text-secondary">Total Decks</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-surface rounded-lg p-6 border border-surface-light">
-          <div className="flex items-center">
-            <Clock className="h-8 w-8 text-success" />
-            <div className="ml-4">
-              <p className="text-2xl font-bold text-text-primary">{stats.studyStreak}</p>
-              <p className="text-text-secondary">Day Streak</p>
+        <div className="bg-surface rounded-lg p-3 sm:p-4 md:p-6 border border-surface-light">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center">
+            <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-success mb-2 sm:mb-0" />
+            <div className="sm:ml-3 md:ml-4">
+              <p className="text-xl sm:text-2xl font-bold text-text-primary">{stats.studyStreak}</p>
+              <p className="text-xs sm:text-sm text-text-secondary">Day Streak</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-surface rounded-lg p-6 border border-surface-light">
-          <div className="flex items-center">
-            <TrendingUp className="h-8 w-8 text-secondary" />
-            <div className="ml-4">
-              <p className="text-2xl font-bold text-text-primary">{stats.weeklyAccuracy}%</p>
-              <p className="text-text-secondary">Weekly Accuracy</p>
+        <div className="bg-surface rounded-lg p-3 sm:p-4 md:p-6 border border-surface-light">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center">
+            <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-secondary mb-2 sm:mb-0" />
+            <div className="sm:ml-3 md:ml-4">
+              <p className="text-xl sm:text-2xl font-bold text-text-primary">{stats.weeklyAccuracy}%</p>
+              <p className="text-xs sm:text-sm text-text-secondary">Weekly Accuracy</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-surface rounded-lg p-6 border border-surface-light">
-          <div className="flex items-center">
-            <Sparkles className="h-8 w-8 text-warning" />
-            <div className="ml-4">
-              <p className="text-2xl font-bold text-text-primary">{stats.totalCards}</p>
-              <p className="text-text-secondary">Cards Studied</p>
+        <div className="bg-surface rounded-lg p-3 sm:p-4 md:p-6 border border-surface-light">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center">
+            <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 text-warning mb-2 sm:mb-0" />
+            <div className="sm:ml-3 md:ml-4">
+              <p className="text-xl sm:text-2xl font-bold text-text-primary">{stats.totalCards}</p>
+              <p className="text-xs sm:text-sm text-text-secondary">Cards Studied</p>
             </div>
           </div>
         </div>
+
+        {/* Token Usage Card */}
+        {user && (
+          <div className="bg-surface rounded-lg p-3 sm:p-4 md:p-6 border border-surface-light col-span-2 sm:col-span-1">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center w-full">
+              <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 text-secondary mb-2 sm:mb-0" />
+              <div className="sm:ml-3 md:ml-4 w-full">
+                <div className="flex items-baseline gap-1">
+                  <p className="text-base sm:text-lg font-bold text-text-primary">
+                    {(user.dailyTokenLimit - user.tokensUsed).toLocaleString()}
+                  </p>
+                  <span className="text-xs text-text-secondary">
+                    / {user.dailyTokenLimit.toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-text-secondary text-xs sm:text-sm">AI Tokens Left</p>
+                <div className="w-full bg-surface-light rounded-full h-1 mt-1">
+                  <div
+                    className={`h-1 rounded-full transition-all duration-300 ${
+                      (user.tokensUsed / user.dailyTokenLimit) > 0.8 ? 'bg-red-500' :
+                      (user.tokensUsed / user.dailyTokenLimit) > 0.6 ? 'bg-yellow-500' : 'bg-green-500'
+                    }`}
+                    style={{ width: `${Math.min((user.tokensUsed / user.dailyTokenLimit) * 100, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Actions and Filters */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-          {/* Search */}
-          <input
-            type="text"
-            placeholder="Search decks..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="px-4 py-2 bg-surface border border-surface-light rounded-lg text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-
-          {/* Category Filter */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-4 py-2 bg-surface border border-surface-light rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            {categories.map(category => (
-              <option key={category} value={category}>
-                {category.charAt(0).toUpperCase() + category.slice(1)}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* Actions and Search */}
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 sm:gap-4">
+        {/* Search */}
+        <input
+          type="text"
+          placeholder="Search decks..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full sm:flex-1 sm:max-w-xs px-3 sm:px-4 py-2 bg-surface border border-surface-light rounded-lg text-sm sm:text-base text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary"
+        />
 
         {/* Action Buttons */}
-        <div className="flex gap-3">
-          <Button
-            onClick={() => setShowCreateModal(true)}
-          >
-            <Sparkles className="h-4 w-4 mr-2" />
-            Generate with AI
-          </Button>
-        </div>
+        <Button
+          onClick={() => setShowCreateModal(true)}
+          className="w-full sm:w-auto"
+        >
+          <Sparkles className="h-4 w-4 mr-2" />
+          <span className="hidden xs:inline">Generate with AI</span>
+          <span className="xs:hidden">Generate</span>
+        </Button>
       </div>
 
       {/* Decks Grid */}
@@ -151,8 +160,8 @@ export default function Dashboard() {
             <BookOpen className="h-12 w-12 text-text-secondary mx-auto mb-4" />
             <h3 className="text-lg font-medium text-text-primary mb-2">No decks found</h3>
             <p className="text-text-secondary mb-6">
-              {searchTerm || selectedCategory !== 'all'
-                ? 'Try adjusting your search or filter criteria'
+              {searchTerm
+                ? 'Try adjusting your search criteria'
                 : 'Create your first deck to get started'}
             </p>
             <Button onClick={() => setShowCreateModal(true)}>

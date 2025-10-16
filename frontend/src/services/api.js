@@ -108,8 +108,8 @@ export const decksAPI = {
   delete: (id) => 
     api.delete(`/decks/${id}`),
   
-  generate: (data) => 
-    api.post('/decks/generate', data, { timeout: 180000 }), // 3 minutes for deck generation
+  generate: (data) =>
+    api.post('/decks/generate', data, { timeout: 300000 }), // 5 minutes for deck generation (allows for retries and large card counts)
   
   getGenerationStatus: (jobId) => 
     api.get(`/decks/generate/status/${jobId}`)
@@ -168,20 +168,23 @@ export const analyticsAPI = {
 
 // AI API
 export const aiAPI = {
-  getUsage: () => 
+  getUsage: () =>
     api.get('/ai/usage'),
-  
-  explain: (data) => 
+
+  explain: (data) =>
     api.post('/ai/explain', data),
-  
-  getHint: (data) => 
+
+  getHint: (data) =>
     api.post('/ai/hint', data),
-  
-  generateQuiz: (data) => 
+
+  generateQuiz: (data) =>
     api.post('/ai/generate-quiz', data),
-  
-  improveCard: (data) => 
+
+  improveCard: (data) =>
     api.post('/ai/improve-card', data)
 }
+
+// Add getTokenUsage to authAPI for convenience
+authAPI.getTokenUsage = () => api.get('/ai/usage')
 
 export default api

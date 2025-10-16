@@ -221,16 +221,24 @@ export default function Study() {
     if (!currentCard || hintsUsed >= 3) return
 
     const nextLevel = hintsUsed + 1
-    
+
     try {
       const result = await getHintMutation.mutateAsync({
         cardId: currentCard.id,
         level: nextLevel
       })
 
-      setCurrentHints([...currentHints, result.hint])
-      setHintsUsed(nextLevel)
+      // axios response has data property
+      const hint = result.data?.hint || result.hint
+      if (hint) {
+        setCurrentHints([...currentHints, hint])
+        setHintsUsed(nextLevel)
+      } else {
+        console.error('No hint in response:', result)
+        toast.error('No hint received')
+      }
     } catch (error) {
+      console.error('Hint error:', error)
       toast.error('Failed to get hint')
     }
   }
@@ -297,40 +305,40 @@ export default function Study() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b border-surface-light bg-surface">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center min-w-0 flex-1">
               <button
                 onClick={exitStudy}
-                className="mr-4 p-2 text-text-secondary hover:text-text-primary rounded-lg hover:bg-surface-light"
+                className="mr-2 sm:mr-4 p-2 text-text-secondary hover:text-text-primary rounded-lg hover:bg-surface-light flex-shrink-0"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <div>
-                <h1 className="text-lg font-semibold text-text-primary">{deck?.title || 'Study Session'}</h1>
-                <p className="text-sm text-text-secondary">
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-lg font-semibold text-text-primary truncate">{deck?.title || 'Study Session'}</h1>
+                <p className="text-xs sm:text-sm text-text-secondary">
                   Card {currentCardIndex + 1} of {cards ? cards.length : 0}
                 </p>
               </div>
             </div>
-            
-            <Button variant="outline" size="sm" onClick={resetCard}>
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset
+
+            <Button variant="outline" size="sm" onClick={resetCard} className="flex-shrink-0">
+              <RotateCcw className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Reset</span>
             </Button>
           </div>
-          
-          <ProgressBar 
-            current={currentCardIndex} 
-            total={cards ? cards.length : 0} 
+
+          <ProgressBar
+            current={currentCardIndex}
+            total={cards ? cards.length : 0}
             progress={progress}
           />
         </div>
       </div>
 
       {/* Study Area */}
-      <div className="max-w-2xl mx-auto px-6 py-12">
-        <div className="space-y-8">
+      <div className="max-w-2xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8 md:py-12">
+        <div className="space-y-4 sm:space-y-6 md:space-y-8">
           {/* Flashcard/Quiz Card */}
           <StudyCard
             card={currentCard}

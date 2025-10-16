@@ -7,13 +7,13 @@ export const useAuthStore = create(
   persist(
     (set, get) => ({
       user: {
-        id: '88e53ecd-ed3b-4577-9e38-61f1efa7ba57',
-        username: 'newuser',
-        email: 'newuser@test.com',
-        tokensUsed: 532,
+        id: '1b678adb-1786-46e8-8cf3-4021f524b317',
+        username: 'testuser',
+        email: 'testuser@example.com',
+        tokensUsed: 0,
         dailyTokenLimit: 10000
       },
-      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijg4ZTUzZWNkLWVkM2ItNDU3Ny05ZTM4LTYxZjFlZmE3YmE1NyIsImVtYWlsIjoibmV3dXNlckB0ZXN0LmNvbSIsImlhdCI6MTc1OTg4Nzg4MywiZXhwIjoxNzYwNDkyNjgzfQ.1LPn1YyNNOxtqCVKE9D5MSPikfi4TLVPxaOEerea2LI',
+      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjFiNjc4YWRiLTE3ODYtNDZlOC04Y2YzLTQwMjFmNTI0YjMxNyIsImVtYWlsIjoidGVzdHVzZXJAZXhhbXBsZS5jb20iLCJpYXQiOjE3NTk4OTkwMDIsImV4cCI6MTc2MDUwMzgwMn0.-6QwYOA05Vv9hEyd_jsOxq8W9lgy_FIZVlrSupLmtJA',
       isLoading: false,
       
       // Set auth data
@@ -32,8 +32,12 @@ export const useAuthStore = create(
         try {
           const response = await authAPI.login(email, password)
           const { user, token } = response.data
-          
+
           get().setAuth(user, token)
+
+          // Fetch actual daily token usage after login
+          await get().refreshUser()
+
           toast.success('Welcome back!')
           return true
         } catch (error) {
@@ -51,8 +55,12 @@ export const useAuthStore = create(
         try {
           const response = await authAPI.register(email, username, password)
           const { user, token } = response.data
-          
+
           get().setAuth(user, token)
+
+          // Fetch actual daily token usage after registration
+          await get().refreshUser()
+
           toast.success('Account created successfully!')
           return true
         } catch (error) {
@@ -79,8 +87,20 @@ export const useAuthStore = create(
       // Refresh user data
       refreshUser: async () => {
         try {
-          const response = await authAPI.me()
-          set({ user: response.data.user })
+          const [userResponse, usageResponse] = await Promise.all([
+            authAPI.me(),
+            authAPI.getTokenUsage()
+          ])
+
+          // Merge user data with daily token usage
+          set({
+            user: {
+              ...userResponse.data.user,
+              // Use daily token usage instead of cumulative
+              tokensUsed: usageResponse.data.usage.todayTokensUsed || 0,
+              dailyTokenLimit: usageResponse.data.usage.dailyLimit || 10000
+            }
+          })
         } catch (error) {
           console.error('Refresh user error:', error)
           if (error.response?.status === 401) {
@@ -89,26 +109,13 @@ export const useAuthStore = create(
         }
       },
       
-      // Check if user has enough tokens
+      // Check if user has enough tokens (for daily limit)
       hasTokens: (required = 100) => {
         const { user } = get()
         if (!user) return false
-        
+
         const remaining = user.dailyTokenLimit - user.tokensUsed
         return remaining >= required
-      },
-      
-      // Update token usage
-      updateTokenUsage: (tokensUsed) => {
-        const { user } = get()
-        if (user) {
-          set({ 
-            user: { 
-              ...user, 
-              tokensUsed: user.tokensUsed + tokensUsed 
-            } 
-          })
-        }
       },
       
       // Switch user for development testing

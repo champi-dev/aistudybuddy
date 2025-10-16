@@ -140,7 +140,7 @@ class OpenAIService {
             content: prompt
           }
         ],
-        max_tokens: Math.min(options.maxTokens || 500, this.maxTokensPerRequest),
+        max_tokens: options.maxTokens || Math.min(500, this.maxTokensPerRequest),
         temperature: options.temperature || this.temperature,
         response_format: options.jsonMode ? { type: 'json_object' } : undefined
       });
@@ -213,8 +213,11 @@ class OpenAIService {
   }
 
   // Generate flashcards from topic
-  async generateFlashcards(topic, count, difficulty, userId) {
-    const prompt = `Create exactly ${count} multiple choice quiz questions for the topic "${topic}" at difficulty level ${difficulty}/5.
+  async generateFlashcards(topic, count, difficulty, userId, metadata = {}) {
+    const additionalContext = metadata.description ? `\n\nAdditional Context: ${metadata.description}` : '';
+    const deckTitle = metadata.title ? `\nDeck Title: ${metadata.title}` : '';
+
+    const prompt = `Create exactly ${count} multiple choice quiz questions for the topic "${topic}" at difficulty level ${difficulty}/5.${deckTitle}${additionalContext}
 
 You must return ONLY a JSON array (starting with [ and ending with ]) containing quiz question objects. Do not include any explanatory text, markdown formatting, or other content.
 
@@ -249,7 +252,7 @@ Count: ${count}
 Difficulty: ${difficulty}`;
 
     const options = {
-      maxTokens: Math.min(count * 200, 3000), // Increase token limit further for larger requests
+      maxTokens: Math.min(count * 250, 16000), // Increased token limit to support up to 50 cards
       temperature: 0.7,
       jsonMode: false,
       cacheTTL: 2592000,

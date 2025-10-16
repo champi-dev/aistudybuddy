@@ -279,6 +279,11 @@ router.post('/complete/:sessionId', async (req, res) => {
         avg_response_time: Math.round(avgResponseTime.avg_time || 0)
       });
 
+    // Update deck last_studied timestamp
+    await db('decks')
+      .where({ id: session.deck_id })
+      .update({ last_studied: new Date() });
+
     // Get session summary
     const summary = await db('study_sessions')
       .where({ id: sessionId })

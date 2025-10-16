@@ -12,7 +12,7 @@ export default function CreateDeckModal({ isOpen, onClose }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const generateDeckMutation = useGenerateDeck()
-  const { user, hasTokens, updateTokenUsage } = useAuthStore()
+  const { user, hasTokens, refreshUser } = useAuthStore()
   
   const {
     register,
@@ -72,11 +72,17 @@ export default function CreateDeckModal({ isOpen, onClose }) {
       }
       
       const result = await generateDeckMutation.mutateAsync(generationData)
-      updateTokenUsage(estimatedTokens)
-      
+
+      // Extract the actual data from axios response
+      const responseData = result.data || result
+      const cardsGenerated = responseData.cardsGenerated || 0
+
+      // Refresh user data to get updated token usage from backend
+      await refreshUser()
+
       reset()
       onClose()
-      toast.success('Deck generated successfully with ' + (result.cardsGenerated || result.deck?.card_count || 0) + ' cards!')
+      toast.success(`Deck generated successfully with ${cardsGenerated} cards!`)
       
       // Invalidate queries to refresh the dashboard
       queryClient.invalidateQueries(['decks'])
@@ -90,13 +96,18 @@ export default function CreateDeckModal({ isOpen, onClose }) {
       
       // Handle timeout, service unavailable, or server errors
       if (error.code === 'ECONNABORTED' || error.response?.status === 503 || error.response?.status === 500) {
-        if (error.response?.status === 500) {
+        if (error.code === 'ECONNABORTED') {
+          toast.error('Generation is taking longer than expected. Please check your dashboard in a moment - the deck may still be processing.')
+        } else if (error.response?.status === 500) {
           toast.error('Server error during generation. Please check your dashboard - the deck may have been created successfully.')
         } else {
-          toast.error('Generation is taking longer than expected. Please check your dashboard - the deck may have been created successfully.')
+          toast.error('Service temporarily unavailable. Please check your dashboard - the deck may have been created successfully.')
         }
         // Still invalidate queries in case it worked
         queryClient.invalidateQueries(['decks'])
+        // Close modal and reset form
+        reset()
+        onClose()
       } else {
         const errorMessage = error.response?.data?.message || 'Failed to generate deck. Please try again.'
         toast.error(errorMessage)
@@ -112,24 +123,24 @@ export default function CreateDeckModal({ isOpen, onClose }) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-surface rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-50">
+      <div className="bg-surface rounded-lg sm:rounded-xl max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-surface-light">
-          <div className="flex items-center">
-            <Sparkles className="h-5 w-5 text-primary mr-2" />
-            <h2 className="text-lg font-semibold text-text-primary">Generate Deck with AI</h2>
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-surface-light sticky top-0 bg-surface z-10">
+          <div className="flex items-center min-w-0 flex-1">
+            <Sparkles className="h-5 w-5 text-primary mr-2 flex-shrink-0" />
+            <h2 className="text-base sm:text-lg font-semibold text-text-primary truncate">Generate Deck with AI</h2>
           </div>
           <button
             onClick={handleClose}
-            className="text-text-secondary hover:text-text-primary"
+            className="text-text-secondary hover:text-text-primary ml-2 flex-shrink-0"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-4 sm:p-6 space-y-3 sm:space-y-4">
           <Input
             label="Deck Title"
             placeholder="e.g., JavaScript Fundamentals"
@@ -218,20 +229,52 @@ export default function CreateDeckModal({ isOpen, onClose }) {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center">
                   <Sparkles className="h-4 w-4 text-secondary mr-2" />
-                  <span className="text-sm font-medium text-text-primary">Token Usage</span>
+                  <span className="text-sm font-medium text-text-primary">AI Token Usage</span>
                 </div>
-                <span className="text-sm text-text-secondary">
-                  ~{estimatedTokens.toLocaleString()} tokens
+                <span className="text-sm font-semibold text-primary">
+                  ~{estimatedTokens.toLocaleString()} tokens needed
                 </span>
               </div>
               
-              <div className="text-xs text-text-secondary">
-                <p>Remaining today: {(user.dailyTokenLimit - user.tokensUsed).toLocaleString()} tokens</p>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-text-secondary">Used today:</span>
+                  <span className="font-medium text-text-primary">{user.tokensUsed.toLocaleString()} tokens</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-text-secondary">Daily limit:</span>
+                  <span className="font-medium text-text-primary">{user.dailyTokenLimit.toLocaleString()} tokens</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-text-secondary">Remaining:</span>
+                  <span className={`font-medium ${hasTokens(estimatedTokens) ? 'text-green-600' : 'text-red-600'}`}>
+                    {(user.dailyTokenLimit - user.tokensUsed).toLocaleString()} tokens
+                  </span>
+                </div>
+                
+                {/* Progress Bar */}
+                <div className="mt-2">
+                  <div className="flex justify-between text-xs text-text-secondary mb-1">
+                    <span>Usage Progress</span>
+                    <span>{Math.round((user.tokensUsed / user.dailyTokenLimit) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-surface-light rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        (user.tokensUsed / user.dailyTokenLimit) > 0.8 ? 'bg-red-500' : 
+                        (user.tokensUsed / user.dailyTokenLimit) > 0.6 ? 'bg-yellow-500' : 'bg-green-500'
+                      }`}
+                      style={{ width: `${Math.min((user.tokensUsed / user.dailyTokenLimit) * 100, 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
               </div>
 
               {!hasTokens(estimatedTokens) && (
-                <div className="flex items-center mt-2 text-warning">
-                  <span className="text-xs">Insufficient tokens for this generation</span>
+                <div className="flex items-center mt-3 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                  <span className="text-xs text-red-600 dark:text-red-400 font-medium">
+                    ⚠️ Insufficient tokens for this generation. Try reducing the number of cards.
+                  </span>
                 </div>
               )}
             </div>

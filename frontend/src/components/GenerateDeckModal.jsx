@@ -13,7 +13,7 @@ export default function GenerateDeckModal({ isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState('topic')
   const [isGenerating, setIsGenerating] = useState(false)
   const [estimatedTokens, setEstimatedTokens] = useState(0)
-  const { user, hasTokens, updateTokenUsage } = useAuthStore()
+  const { user, hasTokens, refreshUser } = useAuthStore()
   const generateDeckMutation = useGenerateDeck()
   
   const {
@@ -42,8 +42,7 @@ export default function GenerateDeckModal({ isOpen, onClose }) {
 
   const tabs = [
     { id: 'topic', label: 'From Topic', icon: Sparkles },
-    { id: 'text', label: 'From Text', icon: FileText },
-    { id: 'url', label: 'From URL', icon: LinkIcon }
+    { id: 'text', label: 'From Text', icon: FileText }
   ]
 
   const difficulties = [
@@ -75,21 +74,35 @@ export default function GenerateDeckModal({ isOpen, onClose }) {
 
       console.log('Generating deck:', generationData)
       const result = await generateDeckMutation.mutateAsync(generationData)
-      
-      // Update token usage
-      updateTokenUsage(estimatedTokens)
-      
+
+      console.log('Generation result:', result)
+
+      // Extract the actual data from axios response
+      const responseData = result.data || result
+      const cardsGenerated = responseData.cardsGenerated || 0
+
+      // Refresh user data to get updated token usage from backend
+      await refreshUser()
+
       reset()
       onClose()
-      toast.success('Deck generated successfully with ' + (result.cardsGenerated || result.deck?.card_count || 0) + ' cards!')
+      toast.success(`Deck generated successfully with ${cardsGenerated} cards!`)
       
       // Invalidate queries to refresh the dashboard
       queryClient.invalidateQueries(['decks'])
       
     } catch (error) {
       console.error('Error generating deck:', error)
-      const errorMessage = error.response?.data?.message || 'Failed to generate deck. Please try again.'
-      toast.error(errorMessage)
+      
+      // Handle timeout or service unavailable errors
+      if (error.code === 'ECONNABORTED' || error.response?.status === 503) {
+        toast.error('Generation is taking longer than expected. Please check your dashboard - the deck may have been created successfully.')
+        // Still invalidate queries in case it worked
+        queryClient.invalidateQueries(['decks'])
+      } else {
+        const errorMessage = error.response?.data?.message || 'Failed to generate deck. Please try again.'
+        toast.error(errorMessage)
+      }
     } finally {
       setIsGenerating(false)
     }
@@ -106,17 +119,17 @@ export default function GenerateDeckModal({ isOpen, onClose }) {
   const canGenerate = hasTokens(estimatedTokens)
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-surface rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-50">
+      <div className="bg-surface rounded-lg sm:rounded-xl max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-surface-light">
-          <div className="flex items-center">
-            <Sparkles className="h-5 w-5 text-primary mr-2" />
-            <h2 className="text-lg font-semibold text-text-primary">Generate Deck with AI</h2>
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-surface-light sticky top-0 bg-surface z-10">
+          <div className="flex items-center min-w-0 flex-1">
+            <Sparkles className="h-5 w-5 text-primary mr-2 flex-shrink-0" />
+            <h2 className="text-base sm:text-lg font-semibold text-text-primary truncate">Generate Deck with AI</h2>
           </div>
           <button
             onClick={handleClose}
-            className="text-text-secondary hover:text-text-primary"
+            className="text-text-secondary hover:text-text-primary ml-2 flex-shrink-0"
           >
             <X className="h-5 w-5" />
           </button>
@@ -143,7 +156,7 @@ export default function GenerateDeckModal({ isOpen, onClose }) {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-4 sm:p-6 space-y-3 sm:space-y-4">
           {/* Content Input */}
           {activeTab === 'topic' && (
             <Input
@@ -187,22 +200,40 @@ export default function GenerateDeckModal({ isOpen, onClose }) {
             </div>
           )}
 
-          {activeTab === 'url' && (
-            <Input
-              label="URL"
-              type="url"
-              placeholder="https://example.com/article"
-              {...register('url', {
-                required: 'URL is required',
-                pattern: {
-                  value: /^https?:\/\/.+/,
-                  message: 'Please enter a valid URL'
+          {/* Deck Title */}
+          <Input
+            label="Deck Title"
+            placeholder="e.g., JavaScript Fundamentals"
+            {...register('title', {
+              maxLength: {
+                value: 255,
+                message: 'Title must be less than 255 characters'
+              }
+            })}
+            error={errors.title?.message}
+            helperText="Optional: Custom name for your deck"
+          />
+
+          {/* Deck Description */}
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">
+              Description
+            </label>
+            <textarea
+              placeholder="Optional: Add a description for this deck"
+              rows={2}
+              className="block w-full rounded-lg border border-surface-light px-3 py-2 text-sm bg-background text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              {...register('description', {
+                maxLength: {
+                  value: 1000,
+                  message: 'Description must be less than 1,000 characters'
                 }
               })}
-              error={errors.url?.message}
-              helperText="We'll extract content from this webpage"
             />
-          )}
+            {errors.description && (
+              <p className="text-sm text-error mt-1">{errors.description.message}</p>
+            )}
+          </div>
 
           {/* Configuration */}
           <div className="grid grid-cols-2 gap-4">

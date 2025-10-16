@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './stores/authStore'
 import Login from './pages/Login'
@@ -9,10 +10,17 @@ import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
-import './utils/resetApp' // Auto-clean bad cached data
+// import './utils/resetApp' // Auto-clean bad cached data - temporarily disabled
 
 function App() {
-  const { token, isLoading } = useAuthStore()
+  const { token, isLoading, refreshUser } = useAuthStore()
+
+  // Refresh user data (including daily token usage) on app load
+  useEffect(() => {
+    if (token) {
+      refreshUser()
+    }
+  }, [token, refreshUser])
 
   if (isLoading) {
     return (

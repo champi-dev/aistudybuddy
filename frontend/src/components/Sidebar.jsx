@@ -11,10 +11,10 @@ import {
 import { useAuthStore } from '../stores/authStore'
 import CreateDeckModal from './CreateDeckModal'
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { user } = useAuthStore()
   const [showCreateModal, setShowCreateModal] = useState(false)
-  
+
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
@@ -25,8 +25,19 @@ export default function Sidebar() {
   const tokenLimit = user?.dailyTokenLimit || 10000
   const tokenPercentage = Math.min((tokensUsed / tokenLimit) * 100, 100)
 
+  const handleNavClick = () => {
+    // Close mobile menu when navigation item is clicked
+    if (onClose) {
+      onClose()
+    }
+  }
+
   return (
-    <aside className="fixed left-0 top-16 w-64 h-[calc(100vh-4rem)] bg-surface border-r border-surface-light">
+    <aside className={`
+      fixed left-0 top-16 w-64 h-[calc(100vh-4rem)] bg-surface border-r border-surface-light
+      transition-transform duration-300 ease-in-out z-50
+      ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+    `}>
       <div className="flex flex-col h-full">
         {/* Navigation */}
         <nav className="flex-1 p-4 space-y-2">
@@ -34,6 +45,7 @@ export default function Sidebar() {
             <NavLink
               key={item.name}
               to={item.href}
+              onClick={handleNavClick}
               className={({ isActive }) =>
                 `flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   isActive

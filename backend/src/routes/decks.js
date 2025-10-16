@@ -39,16 +39,27 @@ router.get('/', async (req, res) => {
 
     const decks = await query;
 
-    // Get card counts for each deck
-    for (let deck of decks) {
+    // Get card counts for each deck and transform to camelCase
+    const transformedDecks = await Promise.all(decks.map(async (deck) => {
       const cardCount = await db('cards')
         .where({ deck_id: deck.id })
         .count('id as count')
         .first();
-      deck.cardCount = parseInt(cardCount.count);
-    }
 
-    res.json(decks);
+      return {
+        id: deck.id,
+        title: deck.title,
+        description: deck.description,
+        category: deck.category || 'Uncategorized',
+        difficulty: deck.difficulty_level,
+        aiGenerated: deck.ai_generated,
+        createdAt: deck.created_at,
+        lastStudied: deck.last_studied,
+        cardCount: parseInt(cardCount.count)
+      };
+    }));
+
+    res.json(transformedDecks);
   } catch (error) {
     console.error('Get decks error:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -71,7 +82,29 @@ router.get('/:id', async (req, res) => {
       .select(['id', 'front', 'back', 'difficulty', 'created_at'])
       .orderBy('created_at', 'asc');
 
-    res.json({ deck, cards });
+    // Transform to camelCase
+    const transformedDeck = {
+      id: deck.id,
+      title: deck.title,
+      description: deck.description,
+      category: deck.category || 'Uncategorized',
+      difficulty: deck.difficulty_level,
+      aiGenerated: deck.ai_generated,
+      createdAt: deck.created_at,
+      lastStudied: deck.last_studied,
+      sourcePrompt: deck.source_prompt
+    };
+
+    res.json({
+      deck: transformedDeck,
+      cards: cards.map(card => ({
+        id: card.id,
+        front: card.front,
+        back: card.back,
+        difficulty: card.difficulty,
+        createdAt: card.created_at
+      }))
+    });
   } catch (error) {
     console.error('Get deck error:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -247,8 +280,8 @@ router.post('/generate', [
         .insert({
           user_id: req.user.id,
           title: deckTitle,
-          description: `AI-generated flashcards for ${type === 'topic' ? topic : type === 'text' ? 'text content' : 'web content'}`,
-          category: category || 'AI Generated',
+          description: req.body.description || `AI-generated flashcards for ${type === 'topic' ? topic : type === 'text' ? 'text content' : 'web content'}`,
+          category: category || (type === 'topic' ? topic : type === 'text' ? 'Custom Content' : 'Web Content'),
           difficulty_level: difficulty,
           ai_generated: true,
           source_prompt: content
@@ -262,7 +295,11 @@ router.post('/generate', [
         content,
         cardCount,
         difficulty,
-        req.user.id
+        req.user.id,
+        {
+          title: deckTitle,
+          description: req.body.description
+        }
       );
       
       console.log(`Generated ${cards.length} cards for deck ${deck.id}`);

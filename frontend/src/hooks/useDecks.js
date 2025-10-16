@@ -28,7 +28,7 @@ export function useDeck(id) {
   return useQuery({
     queryKey: deckKeys.detail(id),
     queryFn: () => decksAPI.get(id),
-    select: (data) => data.data,
+    select: (data) => data.data.deck,
     enabled: !!id,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
@@ -93,17 +93,17 @@ export function useDeleteDeck() {
 // Generate deck with AI
 export function useGenerateDeck() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: decksAPI.generate,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: deckKeys.lists() })
-      toast.success('Deck generation started')
+      // Don't show toast here - let the component handle it with proper card count
       return data.data
     },
     onError: (error) => {
-      const message = error.response?.data?.message || 'Failed to generate deck'
-      toast.error(message)
+      // Don't show toast here - let the component handle errors
+      throw error
     }
   })
 }

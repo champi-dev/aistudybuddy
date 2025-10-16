@@ -135,7 +135,7 @@ export default function DeckDetail() {
         <div className="bg-surface rounded-lg p-4 border border-surface-light">
           <p className="text-text-secondary text-sm">Difficulty</p>
           <p className="text-2xl font-bold text-text-primary">
-            {['', 'Beginner', 'Easy', 'Medium', 'Hard', 'Expert'][deck?.difficulty_level || 1]}
+            {['', 'Beginner', 'Easy', 'Medium', 'Hard', 'Expert'][deck?.difficulty || 1]}
           </p>
         </div>
         <div className="bg-surface rounded-lg p-4 border border-surface-light">
@@ -145,7 +145,7 @@ export default function DeckDetail() {
         <div className="bg-surface rounded-lg p-4 border border-surface-light">
           <p className="text-text-secondary text-sm">Last Studied</p>
           <p className="text-2xl font-bold text-text-primary">
-            {deck?.last_studied ? new Date(deck.last_studied).toLocaleDateString() : 'Never'}
+            {deck?.lastStudied ? new Date(deck.lastStudied).toLocaleDateString() : 'Never'}
           </p>
         </div>
       </div>

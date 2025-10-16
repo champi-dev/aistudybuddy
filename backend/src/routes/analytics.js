@@ -25,20 +25,21 @@ router.get('/progress', async (req, res) => {
       ])
       .first();
 
-    // Recent activity (last 30 days)
+    // Recent activity (last 30 days) - get individual sessions with deck titles
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const recentActivity = await db('study_sessions')
-      .where({ user_id: userId })
-      .whereNotNull('completed_at')
-      .where('started_at', '>=', thirtyDaysAgo)
+      .leftJoin('decks', 'study_sessions.deck_id', 'decks.id')
+      .where({ 'study_sessions.user_id': userId })
+      .whereNotNull('study_sessions.completed_at')
+      .where('study_sessions.started_at', '>=', thirtyDaysAgo)
       .select([
-        db.raw('DATE(started_at) as date'),
-        db.raw('COUNT(*) as sessions'),
-        db.raw('SUM(cards_studied) as cards'),
-        db.raw('AVG(CASE WHEN cards_studied > 0 THEN (correct_answers::float / cards_studied * 100) END) as accuracy')
+        'study_sessions.started_at as date',
+        'study_sessions.cards_studied as cards',
+        'study_sessions.correct_answers',
+        'decks.title as deckTitle'
       ])
-      .groupBy(db.raw('DATE(started_at)'))
-      .orderBy('date', 'desc');
+      .orderBy('study_sessions.started_at', 'desc')
+      .limit(10);
 
     // Most studied decks
     const topDecks = await db('study_sessions')
@@ -98,11 +99,13 @@ router.get('/progress', async (req, res) => {
         totalCorrect: parseInt(totalStats.total_correct || 0),
         averageAccuracy: Math.round(totalStats.avg_accuracy || 0)
       },
-      recentActivity: recentActivity.map(day => ({
-        date: day.date,
-        sessions: parseInt(day.sessions),
-        cards: parseInt(day.cards),
-        accuracy: Math.round(day.accuracy || 0)
+      recentActivity: recentActivity.map(activity => ({
+        date: activity.date,
+        cards: parseInt(activity.cards || 0),
+        deckTitle: activity.deckTitle || 'Unknown Deck',
+        accuracy: activity.correct_answers && activity.cards > 0
+          ? Math.round((activity.correct_answers / activity.cards) * 100)
+          : 0
       })),
       topDecks: topDecks.map(deck => ({
         id: deck.id,
