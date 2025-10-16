@@ -13,14 +13,21 @@ app.use(helmet());
 // Remove trailing slashes from FRONTEND_URL to avoid CORS issues
 const frontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, '') || '';
 
+// Allow both root domain and www subdomain in production
+const productionOrigins = frontendUrl ? [
+  frontendUrl,
+  frontendUrl.replace('://', '://www.'), // Add www version
+  frontendUrl.replace('://www.', '://'),  // Remove www if it's already there (no-op)
+].filter((url, index, self) => url && self.indexOf(url) === index) : []; // Remove duplicates
+
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' ? frontendUrl : ['http://localhost:5173', 'http://localhost:5174'],
+  origin: process.env.NODE_ENV === 'production' ? productionOrigins : ['http://localhost:5173', 'http://localhost:5174'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 };
 
-console.log('CORS configured for origin:', corsOptions.origin);
+console.log('CORS configured for origins:', corsOptions.origin);
 
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
