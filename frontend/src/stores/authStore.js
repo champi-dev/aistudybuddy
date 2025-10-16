@@ -6,14 +6,8 @@ import { authAPI } from '../services/api'
 export const useAuthStore = create(
   persist(
     (set, get) => ({
-      user: {
-        id: '1b678adb-1786-46e8-8cf3-4021f524b317',
-        username: 'testuser',
-        email: 'testuser@example.com',
-        tokensUsed: 0,
-        dailyTokenLimit: 10000
-      },
-      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjFiNjc4YWRiLTE3ODYtNDZlOC04Y2YzLTQwMjFmNTI0YjMxNyIsImVtYWlsIjoidGVzdHVzZXJAZXhhbXBsZS5jb20iLCJpYXQiOjE3NTk4OTkwMDIsImV4cCI6MTc2MDUwMzgwMn0.-6QwYOA05Vv9hEyd_jsOxq8W9lgy_FIZVlrSupLmtJA',
+      user: null,
+      token: null,
       isLoading: false,
       
       // Set auth data
@@ -104,8 +98,10 @@ export const useAuthStore = create(
         } catch (error) {
           console.error('Refresh user error:', error)
           if (error.response?.status === 401) {
-            get().logout()
+            get().setAuth(null, null)
+            throw error // Re-throw to trigger App.jsx error handling
           }
+          throw error
         }
       },
       

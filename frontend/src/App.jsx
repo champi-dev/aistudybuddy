@@ -17,9 +17,13 @@ function App() {
   const { token, isLoading, refreshUser } = useAuthStore()
 
   // Refresh user data (including daily token usage) on app load
+  // If token is invalid, auth state is automatically cleared in authStore
   useEffect(() => {
     if (token) {
-      refreshUser()
+      refreshUser().catch(() => {
+        // Auth state already cleared by authStore on 401
+        // Just silently handle the error to prevent showing error page
+      })
     }
   }, [token, refreshUser])
 
