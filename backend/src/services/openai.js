@@ -1,7 +1,7 @@
 const OpenAI = require('openai');
 const crypto = require('crypto');
 const db = require('../config/database');
-const { redis, redisKeys } = require('../config/redis');
+const { redis, redisKeys, isRedisAvailable } = require('../config/redis');
 
 class OpenAIService {
   constructor() {
@@ -33,9 +33,15 @@ class OpenAIService {
       throw new Error('User not found');
     }
 
-    // Check daily token usage from Redis (more accurate for current day)
-    const dailyKey = redisKeys.tokenUsage(userId);
-    const dailyUsage = await redis.get(dailyKey) || 0;
+    // Check daily token usage from Redis if available
+    let dailyUsage = 0;
+    if (isRedisAvailable() && redis) {
+      try {
+        dailyUsage = await redis.get(redisKeys.tokenUsage(userId)) || 0;
+      } catch (error) {
+        console.warn('Redis unavailable for limit check:', error.message);
+      }
+    }
     const currentUsage = parseInt(dailyUsage);
 
     // Token limit check disabled
@@ -48,34 +54,42 @@ class OpenAIService {
 
   // Update token usage
   async updateTokenUsage(userId, tokensUsed) {
-    // Update Redis (daily counter with 24h TTL)
-    const dailyKey = redisKeys.tokenUsage(userId);
-    const currentUsage = await redis.get(dailyKey) || 0;
-    const newUsage = parseInt(currentUsage) + tokensUsed;
-    await redis.setex(dailyKey, 86400, newUsage); // 24 hours TTL
+    // Update Redis (daily counter with 24h TTL) if available
+    if (isRedisAvailable() && redis) {
+      try {
+        const dailyKey = redisKeys.tokenUsage(userId);
+        const currentUsage = await redis.get(dailyKey) || 0;
+        const newUsage = parseInt(currentUsage) + tokensUsed;
+        await redis.setex(dailyKey, 86400, newUsage); // 24 hours TTL
+      } catch (error) {
+        console.warn('Redis unavailable for token tracking:', error.message);
+      }
+    }
 
     // Update database (persistent record)
     await db('users')
       .where({ id: userId })
       .increment('tokens_used', tokensUsed);
 
-    return newUsage;
+    return tokensUsed;
   }
 
   // Get or generate AI response with caching
   async getOrGenerateResponse(prompt, type, options = {}, userId = null) {
     const cacheKey = this.generateCacheKey(prompt, type, options);
-    
-    // Check cache first
-    try {
-      const cached = await redis.get(redisKeys.aiResponse(cacheKey));
-      if (cached) {
-        const response = JSON.parse(cached);
-        console.log(`Cache hit for ${type}:`, cacheKey);
-        return response;
+
+    // Check cache first (only if Redis is available)
+    if (isRedisAvailable() && redis) {
+      try {
+        const cached = await redis.get(redisKeys.aiResponse(cacheKey));
+        if (cached) {
+          const response = JSON.parse(cached);
+          console.log(`Cache hit for ${type}:`, cacheKey);
+          return response;
+        }
+      } catch (error) {
+        console.warn('Cache read error:', error);
       }
-    } catch (error) {
-      console.warn('Cache read error:', error);
     }
 
     // Estimate tokens for the request
@@ -105,21 +119,24 @@ class OpenAIService {
       timestamp: new Date().toISOString()
     };
 
-    try {
-      const ttl = options.cacheTTL || 604800; // 7 days default
-      await redis.setex(redisKeys.aiResponse(cacheKey), ttl, JSON.stringify(cacheData));
-      
-      // Also store in database for longer-term caching
-      await db('ai_cache').insert({
-        cache_key: cacheKey,
-        request_type: type,
-        request_hash: crypto.createHash('md5').update(prompt).digest('hex'),
-        response: JSON.stringify(cacheData),
-        tokens_used: actualTokens,
-        expires_at: new Date(Date.now() + ttl * 1000)
-      }).onConflict('cache_key').merge();
-    } catch (error) {
-      console.warn('Cache write error:', error);
+    // Only cache if Redis is available
+    if (isRedisAvailable() && redis) {
+      try {
+        const ttl = options.cacheTTL || 604800; // 7 days default
+        await redis.setex(redisKeys.aiResponse(cacheKey), ttl, JSON.stringify(cacheData));
+
+        // Also store in database for longer-term caching
+        await db('ai_cache').insert({
+          cache_key: cacheKey,
+          request_type: type,
+          request_hash: crypto.createHash('md5').update(prompt).digest('hex'),
+          response: JSON.stringify(cacheData),
+          tokens_used: actualTokens,
+          expires_at: new Date(Date.now() + ttl * 1000)
+        }).onConflict('cache_key').merge();
+      } catch (error) {
+        console.warn('Cache write error:', error);
+      }
     }
 
     return cacheData;
@@ -128,6 +145,7 @@ class OpenAIService {
   // Generate response from OpenAI
   async generateResponse(prompt, options = {}) {
     try {
+      console.log(`[OpenAI] Sending request to model: ${this.model}`);
       const completion = await this.client.chat.completions.create({
         model: this.model,
         messages: [
@@ -145,14 +163,21 @@ class OpenAIService {
         response_format: options.jsonMode ? { type: 'json_object' } : undefined
       });
 
+      console.log(`[OpenAI] Success! Tokens used: ${completion.usage.total_tokens}`);
       return {
         content: completion.choices[0].message.content,
         usage: completion.usage
       };
     } catch (error) {
-      console.error('OpenAI API error:', error);
+      console.error('[OpenAI] API error:', {
+        status: error.status,
+        code: error.code,
+        message: error.message,
+        type: error.type
+      });
       // Return fallback response if API fails
       if (error.status === 401 || error.status === 503) {
+        console.warn('[OpenAI] Using fallback questions due to API error');
         return {
           content: this.generateFallbackQuizzes(options.fallbackTopic || 'general', options.fallbackCount || 5),
           usage: { total_tokens: 100 }
@@ -412,9 +437,16 @@ Maximum 300 characters.`;
       throw new Error('User not found');
     }
 
-    // Get today's usage from Redis
-    const dailyKey = redisKeys.tokenUsage(userId);
-    const todayUsage = await redis.get(dailyKey) || 0;
+    // Get today's usage from Redis if available, otherwise use 0
+    let todayUsage = 0;
+    if (isRedisAvailable() && redis) {
+      try {
+        todayUsage = await redis.get(redisKeys.tokenUsage(userId)) || 0;
+      } catch (error) {
+        console.warn('Redis unavailable for token usage, using default:', error.message);
+        todayUsage = 0;
+      }
+    }
 
     return {
       totalTokensUsed: user.tokens_used,
