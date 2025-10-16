@@ -24,9 +24,27 @@ export default function Settings() {
       localStorage.setItem('theme', 'light')
     }
 
-    console.log('Theme changed to:', darkMode ? 'dark' : 'light')
-    console.log('HTML classList:', html.classList.toString())
-    console.log('Computed background:', window.getComputedStyle(document.body).backgroundColor)
+    // Comprehensive debugging
+    const root = document.getElementById('root')
+    const bodyStyles = window.getComputedStyle(document.body)
+    const rootStyles = root ? window.getComputedStyle(root) : null
+    const htmlStyles = window.getComputedStyle(html)
+
+    console.group('🎨 Theme Debug')
+    console.log('Mode:', darkMode ? 'DARK' : 'LIGHT')
+    console.log('HTML classes:', html.classList.toString())
+    console.log('CSS Variables:', {
+      '--bg-background': htmlStyles.getPropertyValue('--bg-background'),
+      '--bg-surface': htmlStyles.getPropertyValue('--bg-surface'),
+      '--text-primary': htmlStyles.getPropertyValue('--text-primary')
+    })
+    console.log('Body background:', bodyStyles.backgroundColor)
+    console.log('Body color:', bodyStyles.color)
+    if (rootStyles) {
+      console.log('#root background:', rootStyles.backgroundColor)
+      console.log('#root color:', rootStyles.color)
+    }
+    console.groupEnd()
   }, [darkMode])
 
   const handleToggleDarkMode = () => {
