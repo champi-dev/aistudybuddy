@@ -10,8 +10,11 @@ const PORT = process.env.PORT || 5000;
 app.use(helmet());
 
 // CORS configuration with logging
+// Remove trailing slashes from FRONTEND_URL to avoid CORS issues
+const frontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, '') || '';
+
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : ['http://localhost:5173', 'http://localhost:5174'],
+  origin: process.env.NODE_ENV === 'production' ? frontendUrl : ['http://localhost:5173', 'http://localhost:5174'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
