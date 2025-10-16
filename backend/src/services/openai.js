@@ -277,7 +277,7 @@ Count: ${count}
 Difficulty: ${difficulty}`;
 
     const options = {
-      maxTokens: Math.min(count * 250, 16000), // Increased token limit to support up to 50 cards
+      maxTokens: Math.min(count * 130, 4096), // Cap at 4096 for gpt-3.5-turbo limit (supports ~30 cards)
       temperature: 0.7,
       jsonMode: false,
       cacheTTL: 2592000,
