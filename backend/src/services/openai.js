@@ -428,33 +428,54 @@ Maximum 300 characters.`;
 
   // Get user's token usage stats
   async getTokenUsage(userId) {
-    const user = await db('users')
-      .where({ id: userId })
-      .select(['tokens_used', 'daily_token_limit', 'created_at'])
-      .first();
+    try {
+      const user = await db('users')
+        .where({ id: userId })
+        .select(['tokens_used', 'daily_token_limit', 'created_at'])
+        .first();
 
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    // Get today's usage from Redis if available, otherwise use 0
-    let todayUsage = 0;
-    if (isRedisAvailable() && redis) {
-      try {
-        todayUsage = await redis.get(redisKeys.tokenUsage(userId)) || 0;
-      } catch (error) {
-        console.warn('Redis unavailable for token usage, using default:', error.message);
-        todayUsage = 0;
+      if (!user) {
+        console.warn(`User not found: ${userId}`);
+        // Return default values instead of throwing
+        return {
+          totalTokensUsed: 0,
+          todayTokensUsed: 0,
+          dailyLimit: 10000,
+          remainingToday: 10000,
+          memberSince: new Date()
+        };
       }
-    }
 
-    return {
-      totalTokensUsed: user.tokens_used,
-      todayTokensUsed: parseInt(todayUsage),
-      dailyLimit: user.daily_token_limit,
-      remainingToday: user.daily_token_limit - parseInt(todayUsage),
-      memberSince: user.created_at
-    };
+      // Get today's usage from Redis if available, otherwise use 0
+      let todayUsage = 0;
+      if (isRedisAvailable() && redis) {
+        try {
+          const cached = await redis.get(redisKeys.tokenUsage(userId));
+          todayUsage = cached ? parseInt(cached) : 0;
+        } catch (error) {
+          console.warn('Redis unavailable for token usage, using default:', error.message);
+          todayUsage = 0;
+        }
+      }
+
+      return {
+        totalTokensUsed: user.tokens_used || 0,
+        todayTokensUsed: todayUsage,
+        dailyLimit: user.daily_token_limit || 10000,
+        remainingToday: (user.daily_token_limit || 10000) - todayUsage,
+        memberSince: user.created_at
+      };
+    } catch (error) {
+      console.error('Error in getTokenUsage:', error);
+      // Return safe defaults on any error
+      return {
+        totalTokensUsed: 0,
+        todayTokensUsed: 0,
+        dailyLimit: 10000,
+        remainingToday: 10000,
+        memberSince: new Date()
+      };
+    }
   }
 }
 
