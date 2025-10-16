@@ -11,8 +11,25 @@
     font-family: 'Inter', system-ui, sans-serif;
   }
   
+  :root {
+    --bg-background: #0f172a;
+    --bg-surface: #1e293b;
+    --bg-surface-light: #334155;
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+  }
+  
+  html.light {
+    --bg-background: #ffffff;
+    --bg-surface: #f8fafc;
+    --bg-surface-light: #e2e8f0;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+  }
+  
   body {
-    @apply bg-background text-text-primary;
+    background-color: var(--bg-background);
+    color: var(--text-primary);
     margin: 0;
     padding: 0;
     min-height: 100vh;
