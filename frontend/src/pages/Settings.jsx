@@ -5,28 +5,17 @@ import { User, Shield, Palette, LogOut } from 'lucide-react'
 
 export default function Settings() {
   const { user, logout } = useAuthStore()
+
+  // Initialize from localStorage or default to dark
   const [darkMode, setDarkMode] = useState(() => {
-    const savedTheme = localStorage.getItem('theme')
-    if (savedTheme) {
-      return savedTheme === 'dark'
-    }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
+    const saved = localStorage.getItem('theme')
+    return saved ? saved === 'dark' : true // Default to dark mode
   })
 
-  // Initialize theme on mount
+  // Apply theme whenever darkMode changes
   useEffect(() => {
     const html = document.documentElement
-    const savedTheme = localStorage.getItem('theme')
-    if (savedTheme === 'light') {
-      html.classList.add('light')
-    } else {
-      html.classList.remove('light')
-    }
-  }, [])
 
-  // Update theme when darkMode changes
-  useEffect(() => {
-    const html = document.documentElement
     if (darkMode) {
       html.classList.remove('light')
       localStorage.setItem('theme', 'dark')
@@ -34,7 +23,13 @@ export default function Settings() {
       html.classList.add('light')
       localStorage.setItem('theme', 'light')
     }
+
+    console.log('Theme changed to:', darkMode ? 'dark' : 'light')
   }, [darkMode])
+
+  const handleToggleDarkMode = () => {
+    setDarkMode(!darkMode)
+  }
 
   const handleLogout = () => {
     logout()
@@ -90,15 +85,20 @@ export default function Settings() {
               <p className="text-text-primary font-medium">Dark Mode</p>
               <p className="text-sm text-text-secondary">Toggle dark theme appearance</p>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input 
-                type="checkbox" 
-                checked={darkMode} 
-                onChange={(e) => setDarkMode(e.target.checked)}
+            <button
+              onClick={handleToggleDarkMode}
+              className="relative inline-flex items-center cursor-pointer"
+              type="button"
+            >
+              <input
+                type="checkbox"
+                checked={darkMode}
+                onChange={handleToggleDarkMode}
                 className="sr-only peer"
+                aria-label="Toggle dark mode"
               />
               <div className="w-11 h-6 bg-surface-light peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-            </label>
+            </button>
           </div>
         </div>
       </div>
