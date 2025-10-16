@@ -25,6 +25,8 @@ export default function Settings() {
     }
 
     console.log('Theme changed to:', darkMode ? 'dark' : 'light')
+    console.log('HTML classList:', html.classList.toString())
+    console.log('Computed background:', window.getComputedStyle(document.body).backgroundColor)
   }, [darkMode])
 
   const handleToggleDarkMode = () => {
