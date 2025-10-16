@@ -4,22 +4,24 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
         primary: {
           DEFAULT: '#6366f1',
           dark: '#4f46e5',
+          100: '#eef2ff',
         },
         secondary: '#f59e0b',
         success: '#10b981',
         error: '#ef4444',
         warning: '#f59e0b',
-        background: '#0f172a',
-        surface: '#1e293b',
-        'surface-light': '#334155',
-        'text-primary': '#f1f5f9',
-        'text-secondary': '#cbd5e1',
+        background: 'var(--bg-background)',
+        surface: 'var(--bg-surface)',
+        'surface-light': 'var(--bg-surface-light)',
+        'text-primary': 'var(--text-primary)',
+        'text-secondary': 'var(--text-secondary)',
       },
       animation: {
         'card-flip': 'cardFlip 0.6s ease-in-out',
