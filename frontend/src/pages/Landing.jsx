@@ -13,6 +13,7 @@ import {
   Check
 } from 'lucide-react'
 import Button from '../components/ui/Button'
+import InstallButton from '../components/InstallButton'
 
 export default function Landing() {
   const fadeInUp = {
@@ -80,30 +81,31 @@ export default function Landing() {
   ]
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh-screen bg-background">
       {/* Navigation */}
       <motion.nav
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.5 }}
-        className="fixed top-0 left-0 right-0 z-50 bg-surface/80 backdrop-blur-lg border-b border-surface-light"
+        className="app-topnav fixed top-0 left-0 right-0 z-50 bg-surface/80 backdrop-blur-lg border-b border-surface-light"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <Brain className="h-8 w-8 text-primary" />
-              <span className="ml-2 text-lg sm:text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          <div className="flex items-center justify-between h-16 gap-2">
+            <div className="flex items-center min-w-0">
+              <Brain className="h-7 w-7 sm:h-8 sm:w-8 text-primary shrink-0" />
+              <span className="ml-2 text-base sm:text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent truncate">
                 AI Study Buddy
               </span>
             </div>
-            <div className="flex items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-1 sm:gap-3 shrink-0">
+              <InstallButton />
               <Link to="/login">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="whitespace-nowrap">
                   Login
                 </Button>
               </Link>
               <Link to="/register">
-                <Button size="sm">
+                <Button size="sm" className="whitespace-nowrap">
                   Sign Up
                 </Button>
               </Link>
@@ -256,8 +258,9 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Benefits Section */}
-      <section className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 lg:px-8">
+      {/* Benefits Section — overflow-hidden contains the x:±50 slide-in
+          transforms, which otherwise widen the page at narrow viewports */}
+      <section className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="max-w-6xl mx-auto">
           <div className="grid md:grid-cols-2 gap-8 sm:gap-12 items-center">
             <motion.div

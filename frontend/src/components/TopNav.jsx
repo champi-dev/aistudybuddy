@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { User, LogOut, Settings, Menu } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import Button from './ui/Button'
+import InstallButton from './InstallButton'
 
 export default function TopNav({ onMenuClick }) {
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -13,8 +14,8 @@ export default function TopNav({ onMenuClick }) {
   }
 
   return (
-    <nav className="h-16 bg-surface border-b border-surface-light fixed top-0 left-0 right-0 z-30">
-      <div className="flex items-center justify-between px-3 sm:px-4 md:px-6 h-full">
+    <nav className="app-topnav bg-surface border-b border-surface-light fixed top-0 left-0 right-0 z-30">
+      <div className="flex items-center justify-between px-3 sm:px-4 md:px-6 h-16">
         {/* Mobile Menu Button + Logo */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Mobile Menu Button */}
@@ -33,7 +34,10 @@ export default function TopNav({ onMenuClick }) {
         </div>
 
         {/* Right Side */}
-        <div className="flex items-center space-x-2 sm:space-x-4">
+        <div className="flex items-center space-x-1 sm:space-x-2">
+          {/* Install as app (hidden when unavailable / already installed) */}
+          <InstallButton />
+
           {/* User Menu */}
           <div className="relative">
             <button
@@ -46,11 +50,11 @@ export default function TopNav({ onMenuClick }) {
 
             {/* Dropdown Menu */}
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-surface border border-surface-light rounded-lg shadow-lg z-50">
+              <div className="absolute right-0 mt-2 w-48 max-w-[calc(100vw-1.5rem)] bg-surface border border-surface-light rounded-lg shadow-lg z-50">
                 <div className="py-1">
                   <div className="px-4 py-2 border-b border-surface-light">
-                    <p className="text-sm font-medium text-text-primary">{user?.username}</p>
-                    <p className="text-xs text-text-secondary">{user?.email}</p>
+                    <p className="text-sm font-medium text-text-primary truncate">{user?.username}</p>
+                    <p className="text-xs text-text-secondary truncate">{user?.email}</p>
                   </div>
                   
                   <button className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-surface-light flex items-center">

@@ -33,3 +33,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </BrowserRouter>
   </QueryClientProvider>
 )
+
+// PWA: register after load so the SW never competes with the first render.
+// Dev is skipped — a cached shell would mask Vite's HMR updates.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // Offline support is a progressive enhancement; failure is non-fatal
+    })
+  })
+}
