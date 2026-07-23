@@ -87,21 +87,21 @@ export default function DeckDetail() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-start min-w-0">
           <Link
             to="/dashboard"
-            className="mr-4 p-2 text-text-secondary hover:text-text-primary rounded-lg hover:bg-surface-light"
+            className="mr-2 sm:mr-4 p-2 text-text-secondary hover:text-text-primary rounded-lg hover:bg-surface-light flex-shrink-0"
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-text-primary">{deck?.title}</h1>
-            <p className="text-text-secondary">{deck?.description}</p>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-text-primary break-words">{deck?.title}</h1>
+            <p className="text-sm sm:text-base text-text-secondary break-words">{deck?.description}</p>
           </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col xs:flex-row gap-3 md:flex-shrink-0">
           <Button 
             variant="outline" 
             onClick={async () => {
@@ -127,24 +127,24 @@ export default function DeckDetail() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-surface rounded-lg p-4 border border-surface-light">
-          <p className="text-text-secondary text-sm">Total Cards</p>
-          <p className="text-2xl font-bold text-text-primary">{cards.length}</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-surface rounded-lg p-3 sm:p-4 border border-surface-light">
+          <p className="text-text-secondary text-xs sm:text-sm">Total Cards</p>
+          <p className="text-lg sm:text-2xl font-bold text-text-primary">{cards.length}</p>
         </div>
-        <div className="bg-surface rounded-lg p-4 border border-surface-light">
-          <p className="text-text-secondary text-sm">Difficulty</p>
-          <p className="text-2xl font-bold text-text-primary">
+        <div className="bg-surface rounded-lg p-3 sm:p-4 border border-surface-light">
+          <p className="text-text-secondary text-xs sm:text-sm">Difficulty</p>
+          <p className="text-lg sm:text-2xl font-bold text-text-primary">
             {['', 'Beginner', 'Easy', 'Medium', 'Hard', 'Expert'][deck?.difficulty || 1]}
           </p>
         </div>
-        <div className="bg-surface rounded-lg p-4 border border-surface-light">
-          <p className="text-text-secondary text-sm">Category</p>
-          <p className="text-2xl font-bold text-text-primary">{deck?.category || 'Uncategorized'}</p>
+        <div className="bg-surface rounded-lg p-3 sm:p-4 border border-surface-light">
+          <p className="text-text-secondary text-xs sm:text-sm">Category</p>
+          <p className="text-lg sm:text-2xl font-bold text-text-primary break-words">{deck?.category || 'Uncategorized'}</p>
         </div>
-        <div className="bg-surface rounded-lg p-4 border border-surface-light">
-          <p className="text-text-secondary text-sm">Last Studied</p>
-          <p className="text-2xl font-bold text-text-primary">
+        <div className="bg-surface rounded-lg p-3 sm:p-4 border border-surface-light">
+          <p className="text-text-secondary text-xs sm:text-sm">Last Studied</p>
+          <p className="text-lg sm:text-2xl font-bold text-text-primary">
             {deck?.lastStudied ? new Date(deck.lastStudied).toLocaleDateString() : 'Never'}
           </p>
         </div>
@@ -159,14 +159,14 @@ export default function DeckDetail() {
         {cards.length > 0 ? (
           <div className="divide-y divide-surface-light">
             {cards.map((card) => (
-              <div key={card.id} className="p-6 hover:bg-surface-light/50 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
+              <div key={card.id} className="p-4 sm:p-6 hover:bg-surface-light/50 transition-colors">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
                     <div className="mb-2">
-                      <h3 className="font-medium text-text-primary mb-1">{card.front}</h3>
-                      <p className="text-text-secondary text-sm">{card.back}</p>
+                      <h3 className="font-medium text-text-primary mb-1 break-words">{card.front}</h3>
+                      <p className="text-text-secondary text-sm break-words">{card.back}</p>
                     </div>
-                    <div className="flex items-center gap-4 text-xs text-text-secondary">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-secondary">
                       <span>Difficulty: {card.difficulty || 1}/5</span>
                       {card.hint_1 && <span>Has hints</span>}
                       {card.explanation && <span>Has explanation</span>}

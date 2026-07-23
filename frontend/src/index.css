@@ -6,19 +6,28 @@
   * {
     box-sizing: border-box;
   }
-  
+
   html {
     font-family: 'Inter', system-ui, sans-serif;
+    /* Prevent Safari from inflating text in landscape */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* Remove grey tap flash on iOS */
+    -webkit-tap-highlight-color: transparent;
   }
-  
+
   :root {
     --bg-background: #0f172a;
     --bg-surface: #1e293b;
     --bg-surface-light: #334155;
     --text-primary: #f1f5f9;
     --text-secondary: #cbd5e1;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
   }
-  
+
   html.light {
     --bg-background: #ffffff;
     --bg-surface: #f8fafc;
@@ -26,56 +35,139 @@
     --text-primary: #1e293b;
     --text-secondary: #64748b;
   }
-  
+
   body {
     background-color: var(--bg-background);
     color: var(--text-primary);
     margin: 0;
     padding: 0;
     min-height: 100vh;
+    min-height: 100dvh; /* Safari/Chrome dynamic toolbar */
+    overflow-x: hidden;
+    /* Disable pull-to-refresh glow / rubber-band chaining on the root scroller */
+    overscroll-behavior-y: none;
+    -webkit-font-smoothing: antialiased;
   }
-  
+
   #root {
     min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  /* Long words / URLs must never force horizontal scroll at 320px */
+  h1, h2, h3, h4, h5, h6, p, li, span, div {
+    overflow-wrap: break-word;
+  }
+
+  img, svg, video, canvas {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Kill the 300ms delay / accidental double-tap zoom on controls */
+  button, a, input, select, textarea, label, [role="button"] {
+    touch-action: manipulation;
+  }
+
+  /*
+   * iOS Safari zooms the page when a focused input's font-size is < 16px.
+   * Force 16px on all touch devices (pointer: coarse covers landscape
+   * phones/tablets that are wider than any width-based breakpoint).
+   */
+  @media (pointer: coarse), (max-width: 767px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Respect users who disable animation */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
 @layer components {
+  /* Fixed top nav: extend into the iOS notch / status bar area */
+  .app-topnav {
+    padding-top: var(--safe-top);
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+  }
+
+  /* Content offset below the fixed 4rem nav + notch */
+  .app-content-offset {
+    padding-top: calc(4rem + var(--safe-top));
+  }
+
+  /* Sidebar pinned under the nav, sized with dvh so the Safari
+     toolbar collapse never leaves a gap or clips the token widget */
+  .app-sidebar {
+    top: calc(4rem + var(--safe-top));
+    height: calc(100vh - 4rem - var(--safe-top));
+    height: calc(100dvh - 4rem - var(--safe-top));
+    padding-left: var(--safe-left);
+    padding-bottom: var(--safe-bottom);
+  }
+
+  /* Modal panel: never taller than the *visible* viewport (keyboard-safe) */
+  .modal-panel {
+    max-height: calc(100vh - 2rem);
+    max-height: calc(100dvh - 2rem);
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Full-height centering that tracks the dynamic viewport */
+  .min-h-dvh-screen {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
   .card-face {
     @apply absolute inset-0 w-full h-full backface-hidden;
   }
-  
+
   .card-face.back {
     transform: rotateY(180deg);
   }
-  
+
   .preserve-3d {
     transform-style: preserve-3d;
   }
-  
+
   .backface-hidden {
     backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
   }
-  
+
   .perspective-1000 {
     perspective: 1000px;
   }
-  
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 8px;
-  }
-  
-  ::-webkit-scrollbar-track {
-    @apply bg-surface;
-  }
-  
-  ::-webkit-scrollbar-thumb {
-    @apply bg-surface-light rounded-full;
-  }
-  
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-gray-600;
+
+  /* Custom scrollbar — only where a mouse exists; keep native overlay
+     scrollbars on touch devices */
+  @media (hover: hover) and (pointer: fine) {
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      @apply bg-surface;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      @apply bg-surface-light rounded-full;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      @apply bg-gray-600;
+    }
   }
 }
 
@@ -83,8 +175,17 @@
   .text-shadow {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
-  
+
   .gradient-bg {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .pb-safe {
+    padding-bottom: var(--safe-bottom);
+  }
+
+  .px-safe {
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
   }
 }

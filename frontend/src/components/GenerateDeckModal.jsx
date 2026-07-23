@@ -121,7 +121,7 @@ export default function GenerateDeckModal({ isOpen, onClose }) {
 
   return createPortal(
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-[9999]">
-      <div className="bg-surface rounded-lg sm:rounded-xl max-w-lg w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface rounded-lg sm:rounded-xl max-w-lg w-full modal-panel overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-surface-light sticky top-0 bg-surface z-10">
           <div className="flex items-center min-w-0 flex-1">
@@ -237,7 +237,7 @@ export default function GenerateDeckModal({ isOpen, onClose }) {
           </div>
 
           {/* Configuration */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4">
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">
                 Number of Cards

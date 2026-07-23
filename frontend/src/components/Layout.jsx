@@ -7,7 +7,7 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-background pt-16">
+    <div className="min-h-dvh-screen bg-background app-content-offset">
       {/* Top Navigation */}
       <TopNav onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
 
@@ -25,8 +25,10 @@ export default function Layout() {
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
         {/* Main Content */}
-        <main className="flex-1 p-3 sm:p-4 md:p-6 lg:ml-64 w-full min-w-0 max-w-full overflow-x-hidden">
-          <Outlet />
+        <main className="flex-1 p-3 sm:p-4 md:p-6 2xl:p-8 lg:ml-64 w-full min-w-0 max-w-full overflow-x-hidden">
+          <div className="mx-auto w-full max-w-7xl 3xl:max-w-[1800px]">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

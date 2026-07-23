@@ -8,7 +8,7 @@ export default function StudyCard({ card, isFlipped, onFlip, onSelectOption, sel
     
     return (
       <div className="w-full">
-        <div className="bg-surface border border-surface-light rounded-xl shadow-lg p-8">
+        <div className="bg-surface border border-surface-light rounded-xl shadow-lg p-4 sm:p-6 md:p-8">
           {/* Question */}
           <div className="mb-6">
             <div className="mb-4">
@@ -16,11 +16,11 @@ export default function StudyCard({ card, isFlipped, onFlip, onSelectOption, sel
                 Question
               </span>
             </div>
-            <h2 className="text-xl font-medium text-text-primary leading-relaxed">
+            <h2 className="text-lg sm:text-xl font-medium text-text-primary leading-relaxed break-words">
               {card.front}
             </h2>
           </div>
-          
+
           {/* Options */}
           <div className="space-y-3">
             {options.map((option, index) => {
@@ -33,7 +33,7 @@ export default function StudyCard({ card, isFlipped, onFlip, onSelectOption, sel
                   key={index}
                   onClick={() => !isFlipped && onSelectOption(index)}
                   disabled={isFlipped}
-                  className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                  className={`w-full text-left p-3 sm:p-4 rounded-lg border-2 transition-all ${
                     showResult && isCorrect
                       ? 'bg-success/10 border-success text-text-primary'
                       : showResult && isSelected && !isCorrect
@@ -45,9 +45,9 @@ export default function StudyCard({ card, isFlipped, onFlip, onSelectOption, sel
                   whileHover={!isFlipped ? { scale: 1.02 } : {}}
                   whileTap={!isFlipped ? { scale: 0.98 } : {}}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full mr-3 font-medium text-sm ${
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start min-w-0 flex-1">
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full mr-3 font-medium text-sm flex-shrink-0 ${
                         showResult && isCorrect
                           ? 'bg-success text-white'
                           : showResult && isSelected && !isCorrect
@@ -58,10 +58,10 @@ export default function StudyCard({ card, isFlipped, onFlip, onSelectOption, sel
                       }`}>
                         {String.fromCharCode(65 + index)}
                       </span>
-                      <span className="text-base">{option}</span>
+                      <span className="text-sm sm:text-base break-words min-w-0 pt-1">{option}</span>
                     </div>
                     {showResult && isCorrect && (
-                      <CheckCircle className="h-5 w-5 text-success" />
+                      <CheckCircle className="h-5 w-5 text-success flex-shrink-0 mt-1.5" />
                     )}
                   </div>
                 </motion.button>
@@ -125,19 +125,19 @@ export default function StudyCard({ card, isFlipped, onFlip, onSelectOption, sel
   return (
     <div className="perspective-1000 cursor-pointer" onClick={onFlip}>
       <motion.div
-        className="relative w-full h-96 preserve-3d"
+        className="relative w-full h-72 sm:h-80 md:h-96 preserve-3d"
         animate={{ rotateY: isFlipped ? 180 : 0 }}
         transition={{ duration: 0.6 }}
       >
         {/* Front of card */}
         <div className="card-face front absolute inset-0 w-full h-full backface-hidden bg-surface border border-surface-light rounded-xl shadow-lg">
-          <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+          <div className="flex flex-col items-center justify-center h-full p-4 sm:p-6 md:p-8 text-center overflow-y-auto">
             <div className="mb-4">
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
                 Question
               </span>
             </div>
-            <h2 className="text-xl font-medium text-text-primary leading-relaxed">
+            <h2 className="text-lg sm:text-xl font-medium text-text-primary leading-relaxed break-words max-w-full">
               {card.front}
             </h2>
             <div className="mt-6 text-text-secondary text-sm">
@@ -151,13 +151,13 @@ export default function StudyCard({ card, isFlipped, onFlip, onSelectOption, sel
           className="card-face back absolute inset-0 w-full h-full backface-hidden bg-surface-light border border-surface-light rounded-xl shadow-lg"
           style={{ transform: 'rotateY(180deg)' }}
         >
-          <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+          <div className="flex flex-col items-center justify-center h-full p-4 sm:p-6 md:p-8 text-center overflow-y-auto">
             <div className="mb-4">
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
                 Answer
               </span>
             </div>
-            <div className="text-lg text-text-primary leading-relaxed">
+            <div className="text-base sm:text-lg text-text-primary leading-relaxed break-words max-w-full">
               {card.back}
             </div>
             {card.difficulty && (

@@ -60,7 +60,7 @@ export default function Settings() {
       <h1 className="text-2xl font-bold text-text-primary">Settings</h1>
       
       {/* Profile Section */}
-      <div className="bg-surface rounded-lg p-6 border border-surface-light">
+      <div className="bg-surface rounded-lg p-4 sm:p-6 border border-surface-light">
         <div className="flex items-center mb-4">
           <User className="h-5 w-5 text-primary mr-2" />
           <h2 className="text-lg font-semibold text-text-primary">Profile</h2>
@@ -94,7 +94,7 @@ export default function Settings() {
       </div>
 
       {/* Preferences */}
-      <div className="bg-surface rounded-lg p-6 border border-surface-light">
+      <div className="bg-surface rounded-lg p-4 sm:p-6 border border-surface-light">
         <div className="flex items-center mb-4">
           <Palette className="h-5 w-5 text-primary mr-2" />
           <h2 className="text-lg font-semibold text-text-primary">Preferences</h2>
@@ -125,7 +125,7 @@ export default function Settings() {
 
 
       {/* Account Actions */}
-      <div className="bg-surface rounded-lg p-6 border border-surface-light">
+      <div className="bg-surface rounded-lg p-4 sm:p-6 border border-surface-light">
         <div className="flex items-center mb-4">
           <Shield className="h-5 w-5 text-primary mr-2" />
           <h2 className="text-lg font-semibold text-text-primary">Account</h2>

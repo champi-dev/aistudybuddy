@@ -34,13 +34,13 @@ export default function Sidebar({ isOpen, onClose }) {
 
   return (
     <aside className={`
-      fixed left-0 top-16 w-64 h-[calc(100vh-4rem)] bg-surface border-r border-surface-light
+      app-sidebar fixed left-0 w-64 max-w-[85vw] bg-surface border-r border-surface-light
       transition-transform duration-300 ease-in-out z-50
       ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
     `}>
       <div className="flex flex-col h-full">
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           {navigation.map((item) => (
             <NavLink
               key={item.name}

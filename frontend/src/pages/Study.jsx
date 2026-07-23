@@ -250,7 +250,7 @@ export default function Study() {
   // Loading state
   if (startStudyMutation.isPending || !sessionData) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-dvh-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-text-secondary">Starting study session...</p>
@@ -262,7 +262,7 @@ export default function Study() {
   // No cards state
   if (!cards || cards.length === 0) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-dvh-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <p className="text-text-primary text-lg mb-4">This deck has no cards</p>
           <Button onClick={() => navigate(`/decks/${deckId}`)}>
@@ -302,7 +302,7 @@ export default function Study() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh-screen bg-background">
       {/* Header */}
       <div className="border-b border-surface-light bg-surface">
         <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4">
@@ -397,7 +397,7 @@ export default function Study() {
           {/* Action Buttons */}
           <div className="space-y-4">
             {!isFlipped ? (
-              <div className="flex gap-3">
+              <div className="flex flex-col xs:flex-row gap-3">
                 {currentCard && currentCard.is_quiz ? (
                   // Quiz mode buttons
                   <>
@@ -462,7 +462,7 @@ export default function Study() {
                   <p className="text-center text-text-secondary text-sm">
                     How well did you know this?
                   </p>
-                  <div className="flex gap-3">
+                  <div className="grid grid-cols-1 xs:grid-cols-3 gap-2 sm:gap-3">
                     <Button
                       variant="error"
                       onClick={() => handleAnswer(false)}

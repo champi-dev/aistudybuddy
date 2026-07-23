@@ -1,0 +1,23 @@
+# Production backend image (Node/Express + knex migrations)
+FROM node:20-alpine
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY backend/package.json backend/package-lock.json ./
+RUN npm ci --omit=dev
+
+# Copy only source (avoids host node_modules)
+COPY backend/knexfile.js backend/validate-env.js ./
+COPY backend/src ./src
+
+# The app hard-codes Postgres SSL when NODE_ENV=production, which fails against
+# a plain (non-SSL) postgres container. Make SSL opt-in via PGSSL=true instead.
+RUN sed -i "s|process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false|process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : false|" src/config/database.js \
+ && sed -i "s|ssl: { rejectUnauthorized: false }|ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : false|" knexfile.js \
+ && grep -q "PGSSL" src/config/database.js && grep -q "PGSSL" knexfile.js
+
+EXPOSE 5000
+
+# "npm start" = knex migrate:latest && node src/server.js (migrations run on boot)
+CMD ["npm", "start"]

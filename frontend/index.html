@@ -2,7 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+    <script>
+      // iOS Safari auto-zooms on input focus and can leave the page stuck
+      // zoomed in. Since iOS 10 Safari ignores maximum-scale for user
+      // pinch-zoom (accessibility preserved) but it does disable the focus
+      // auto-zoom. Only apply on iOS: Android Chrome would honor it and
+      // actually block pinch-zoom.
+      (function () {
+        var isIOS =
+          /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPadOS masquerades as Mac
+        if (isIOS) {
+          var meta = document.querySelector('meta[name="viewport"]');
+          meta.setAttribute('content', meta.getAttribute('content') + ', maximum-scale=1.0');
+        }
+      })();
+    </script>
 
     <!-- Favicons -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />

@@ -6,11 +6,19 @@ const { redis, redisKeys, isRedisAvailable } = require('../config/redis');
 class OpenAIService {
   constructor() {
     this.client = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
+      apiKey: process.env.OPENAI_API_KEY,
+      baseURL: process.env.OPENAI_BASE_URL || undefined
     });
     this.model = process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
     this.maxTokensPerRequest = parseInt(process.env.OPENAI_MAX_TOKENS_PER_REQUEST) || 1000;
     this.temperature = parseFloat(process.env.OPENAI_TEMPERATURE) || 0.7;
+    // Qwen3 (local Ollama) emits a <think>...</think> reasoning block that
+    // wastes tokens and pollutes content, so we disable and strip it.
+    this.isReasoningModel = /qwen3/i.test(this.model);
+  }
+
+  stripThinking(text) {
+    return (text || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
   }
 
   // Generate cache key for request
@@ -151,7 +159,8 @@ class OpenAIService {
         messages: [
           {
             role: 'system',
-            content: options.systemPrompt || 'You are a helpful AI assistant that creates educational content. Be concise and accurate.'
+            content: (options.systemPrompt || 'You are a helpful AI assistant that creates educational content. Be concise and accurate.')
+              + (this.isReasoningModel ? '\n\n/no_think' : '')
           },
           {
             role: 'user',
@@ -163,9 +172,9 @@ class OpenAIService {
         response_format: options.jsonMode ? { type: 'json_object' } : undefined
       });
 
-      console.log(`[OpenAI] Success! Tokens used: ${completion.usage.total_tokens}`);
+      console.log(`[OpenAI] Success! Tokens used: ${completion.usage?.total_tokens ?? 'n/a'}`);
       return {
-        content: completion.choices[0].message.content,
+        content: this.stripThinking(completion.choices[0].message.content),
         usage: completion.usage
       };
     } catch (error) {

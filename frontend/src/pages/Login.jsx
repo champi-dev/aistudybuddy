@@ -21,7 +21,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-dvh-screen bg-background flex items-center justify-center p-4">
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
@@ -37,7 +37,7 @@ export default function Login() {
         </div>
 
         {/* Login Form */}
-        <div className="bg-surface rounded-xl p-8 shadow-lg border border-surface-light">
+        <div className="bg-surface rounded-xl p-5 sm:p-8 shadow-lg border border-surface-light">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <Input
               label="Email"

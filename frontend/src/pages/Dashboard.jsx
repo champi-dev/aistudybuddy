@@ -44,7 +44,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <div className="bg-surface rounded-lg p-3 sm:p-4 md:p-6 border border-surface-light">
           <div className="flex flex-col sm:flex-row items-start sm:items-center">
             <BookOpen className="h-6 w-6 sm:h-8 sm:w-8 text-primary mb-2 sm:mb-0" />
@@ -138,7 +138,7 @@ export default function Dashboard() {
       </div>
 
       {/* Decks Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6">
         {isLoading && (
           <>
             {[1, 2, 3].map(i => (
@@ -182,7 +182,7 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-surface rounded-lg p-6 border border-surface-light">
+      <div className="bg-surface rounded-lg p-4 sm:p-6 border border-surface-light">
         <h2 className="text-lg font-semibold text-text-primary mb-4">Recent Activity</h2>
         <div className="space-y-3">
           {analytics?.recentActivity?.length > 0 ? (

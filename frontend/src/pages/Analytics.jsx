@@ -21,9 +21,9 @@ export default function Analytics() {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-text-primary">Analytics</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="bg-surface rounded-lg p-6 border border-surface-light animate-pulse">
+            <div key={i} className="bg-surface rounded-lg p-4 sm:p-6 border border-surface-light animate-pulse">
               <div className="h-8 bg-surface-light rounded mb-2"></div>
               <div className="h-4 bg-surface-light rounded"></div>
             </div>
@@ -43,8 +43,8 @@ export default function Analytics() {
       <h1 className="text-2xl font-bold text-text-primary">Analytics</h1>
       
       {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-surface rounded-lg p-6 border border-surface-light">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+        <div className="bg-surface rounded-lg p-4 sm:p-6 border border-surface-light">
           <div className="flex items-center">
             <BookOpen className="h-8 w-8 text-primary" />
             <div className="ml-4">
@@ -54,7 +54,7 @@ export default function Analytics() {
           </div>
         </div>
 
-        <div className="bg-surface rounded-lg p-6 border border-surface-light">
+        <div className="bg-surface rounded-lg p-4 sm:p-6 border border-surface-light">
           <div className="flex items-center">
             <Target className="h-8 w-8 text-success" />
             <div className="ml-4">
@@ -64,7 +64,7 @@ export default function Analytics() {
           </div>
         </div>
 
-        <div className="bg-surface rounded-lg p-6 border border-surface-light">
+        <div className="bg-surface rounded-lg p-4 sm:p-6 border border-surface-light">
           <div className="flex items-center">
             <TrendingUp className="h-8 w-8 text-secondary" />
             <div className="ml-4">
@@ -74,7 +74,7 @@ export default function Analytics() {
           </div>
         </div>
 
-        <div className="bg-surface rounded-lg p-6 border border-surface-light">
+        <div className="bg-surface rounded-lg p-4 sm:p-6 border border-surface-light">
           <div className="flex items-center">
             <Clock className="h-8 w-8 text-warning" />
             <div className="ml-4">
@@ -86,7 +86,7 @@ export default function Analytics() {
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-surface rounded-lg p-6 border border-surface-light">
+      <div className="bg-surface rounded-lg p-4 sm:p-6 border border-surface-light">
         <h2 className="text-lg font-semibold text-text-primary mb-4">Recent Study Activity</h2>
         {recentActivity.length > 0 ? (
           <div className="space-y-3">
@@ -110,7 +110,7 @@ export default function Analytics() {
       </div>
 
       {/* Top Performing Decks */}
-      <div className="bg-surface rounded-lg p-6 border border-surface-light">
+      <div className="bg-surface rounded-lg p-4 sm:p-6 border border-surface-light">
         <h2 className="text-lg font-semibold text-text-primary mb-4">Top Performing Decks</h2>
         {topDecks.length > 0 ? (
           <div className="space-y-3">
@@ -143,7 +143,7 @@ export default function Analytics() {
 
       {/* AI Insights */}
       {insights?.insights && (
-        <div className="bg-surface rounded-lg p-6 border border-surface-light">
+        <div className="bg-surface rounded-lg p-4 sm:p-6 border border-surface-light">
           <h2 className="text-lg font-semibold text-text-primary mb-4">AI Insights</h2>
           <div className="space-y-3">
             {insights.insights.map((insight, index) => (

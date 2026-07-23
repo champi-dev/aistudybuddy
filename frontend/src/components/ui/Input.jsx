@@ -20,7 +20,7 @@ const Input = forwardRef(({
         ref={ref}
         type={type}
         className={clsx(
-          'block w-full rounded-lg border px-3 py-2 text-sm',
+          'block w-full rounded-lg border px-3 py-2 text-sm min-h-[2.75rem]',
           'bg-background text-text-primary placeholder:text-text-secondary',
           'transition-colors duration-200',
           'focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary',
