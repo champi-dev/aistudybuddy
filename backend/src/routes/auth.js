@@ -4,11 +4,12 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const { authLimiter } = require('../middleware/rateLimit');
 
 const router = express.Router();
 
 // Register
-router.post('/register', [
+router.post('/register', authLimiter, [
   body('email').isEmail().normalizeEmail(),
   body('username').isLength({ min: 3, max: 50 }).trim(),
   body('password').isLength({ min: 6 })
@@ -47,7 +48,7 @@ router.post('/register', [
         username,
         password_hash: passwordHash
       })
-      .returning(['id', 'email', 'username', 'created_at', 'tokens_used', 'daily_token_limit']);
+      .returning(['id', 'email', 'username', 'created_at']);
 
     // Generate JWT
     const token = jwt.sign(
@@ -62,9 +63,7 @@ router.post('/register', [
       user: {
         id: user.id,
         email: user.email,
-        username: user.username,
-        tokensUsed: user.tokens_used,
-        dailyTokenLimit: user.daily_token_limit
+        username: user.username
       }
     });
   } catch (error) {
@@ -74,7 +73,7 @@ router.post('/register', [
 });
 
 // Login
-router.post('/login', [
+router.post('/login', authLimiter, [
   body('email').isEmail().normalizeEmail(),
   body('password').notEmpty()
 ], async (req, res) => {
@@ -114,9 +113,7 @@ router.post('/login', [
       user: {
         id: user.id,
         email: user.email,
-        username: user.username,
-        tokensUsed: user.tokens_used,
-        dailyTokenLimit: user.daily_token_limit
+        username: user.username
       }
     });
   } catch (error) {
@@ -146,7 +143,7 @@ router.get('/me', authenticateToken, async (req, res) => {
   try {
     const user = await db('users')
       .where({ id: req.user.id })
-      .select(['id', 'email', 'username', 'created_at', 'tokens_used', 'daily_token_limit'])
+      .select(['id', 'email', 'username', 'created_at'])
       .first();
 
     if (!user) {
@@ -158,8 +155,6 @@ router.get('/me', authenticateToken, async (req, res) => {
         id: user.id,
         email: user.email,
         username: user.username,
-        tokensUsed: user.tokens_used,
-        dailyTokenLimit: user.daily_token_limit,
         createdAt: user.created_at
       }
     });

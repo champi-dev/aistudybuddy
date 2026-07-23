@@ -33,7 +33,10 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting removed - we have smart caching instead
+// Rate limiting — general guard on every /api request, with tighter
+// route-specific limiters (auth, AI generation) applied in their own routers.
+const { generalLimiter } = require('./middleware/rateLimit');
+app.use('/api', generalLimiter);
 
 // Request logging middleware
 app.use((req, res, next) => {

@@ -168,9 +168,6 @@ export const analyticsAPI = {
 
 // AI API
 export const aiAPI = {
-  getUsage: () =>
-    api.get('/ai/usage'),
-
   explain: (data) =>
     api.post('/ai/explain', data),
 
@@ -183,8 +180,5 @@ export const aiAPI = {
   improveCard: (data) =>
     api.post('/ai/improve-card', data)
 }
-
-// Add getTokenUsage to authAPI for convenience
-authAPI.getTokenUsage = () => api.get('/ai/usage')
 
 export default api

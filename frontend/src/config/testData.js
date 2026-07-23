@@ -4,9 +4,7 @@
 export const TEST_USER = {
   id: '88e53ecd-ed3b-4577-9e38-61f1efa7ba57',
   username: 'newuser',
-  email: 'newuser@test.com',
-  tokensUsed: 532,
-  dailyTokenLimit: 10000
+  email: 'newuser@test.com'
 };
 
 export const TEST_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijg4ZTUzZWNkLWVkM2ItNDU3Ny05ZTM4LTYxZjFlZmE3YmE1NyIsImVtYWlsIjoibmV3dXNlckB0ZXN0LmNvbSIsImlhdCI6MTc1OTg4Nzg4MywiZXhwIjoxNzYwNDkyNjgzfQ.1LPn1YyNNOxtqCVKE9D5MSPikfi4TLVPxaOEerea2LI';

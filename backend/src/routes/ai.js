@@ -1,6 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { authenticateToken, requireAuth } = require('../middleware/auth');
+const { aiLimiter } = require('../middleware/rateLimit');
 const openaiService = require('../services/openai');
 
 const router = express.Router();
@@ -8,26 +9,8 @@ const router = express.Router();
 // Apply auth middleware to all routes
 router.use(authenticateToken);
 router.use(requireAuth);
-
-// Get user's token usage
-router.get('/usage', async (req, res) => {
-  try {
-    const usage = await openaiService.getTokenUsage(req.user.id);
-    res.json({ usage });
-  } catch (error) {
-    console.error('Get token usage error:', error);
-    // Return default usage data instead of 500 error
-    res.json({
-      usage: {
-        totalTokensUsed: 0,
-        todayTokensUsed: 0,
-        dailyLimit: 10000,
-        remainingToday: 10000,
-        memberSince: new Date()
-      }
-    });
-  }
-});
+// Every route in this file calls the (shared, local) AI model.
+router.use(aiLimiter);
 
 // Generate explanation for incorrect answer
 router.post('/explain', [
@@ -61,16 +44,7 @@ router.post('/explain', [
     });
   } catch (error) {
     console.error('Generate explanation error:', error);
-    
-    // Token limit check disabled
-    // if (error.message.includes('token limit')) {
-    //   return res.status(429).json({ 
-    //     message: error.message,
-    //     type: 'TOKEN_LIMIT_EXCEEDED'
-    //   });
-    // }
-    
-    res.status(500).json({ message: 'Failed to generate explanation' });
+    res.status(502).json({ message: error.message || 'Failed to generate explanation' });
   }
 });
 
@@ -107,16 +81,7 @@ router.post('/hint', [
     });
   } catch (error) {
     console.error('Generate hint error:', error);
-    
-    // Token limit check disabled
-    // if (error.message.includes('token limit')) {
-    //   return res.status(429).json({ 
-    //     message: error.message,
-    //     type: 'TOKEN_LIMIT_EXCEEDED'
-    //   });
-    // }
-    
-    res.status(500).json({ message: 'Failed to generate hint' });
+    res.status(502).json({ message: error.message || 'Failed to generate hint' });
   }
 });
 
@@ -137,36 +102,22 @@ router.post('/generate-quiz', [
 
     const { topic, questionCount, difficulty = 3 } = req.body;
 
-    // Estimate tokens
-    const estimatedTokens = questionCount * 60;
-    // Token limit check disabled
-    // const tokenCheck = await openaiService.checkTokenLimit(req.user.id, estimatedTokens);
-
     const cards = await openaiService.generateFlashcards(
-      topic, 
-      questionCount, 
-      difficulty, 
+      topic,
+      questionCount,
+      difficulty,
       req.user.id
     );
 
-    res.json({ 
+    res.json({
       quiz: cards,
       topic,
-      tokensUsed: estimatedTokens,
-      remainingTokens: 999999 // Token limits disabled
+      questionsGenerated: cards.length,
+      questionsRequested: questionCount
     });
   } catch (error) {
     console.error('Generate quiz error:', error);
-    
-    // Token limit check disabled
-    // if (error.message.includes('token limit')) {
-    //   return res.status(429).json({ 
-    //     message: error.message,
-    //     type: 'TOKEN_LIMIT_EXCEEDED'
-    //   });
-    // }
-    
-    res.status(500).json({ message: 'Failed to generate quiz' });
+    res.status(502).json({ message: error.message || 'Failed to generate quiz' });
   }
 });
 
@@ -226,16 +177,7 @@ Return improved version as JSON:
     });
   } catch (error) {
     console.error('Improve card error:', error);
-    
-    // Token limit check disabled
-    // if (error.message.includes('token limit')) {
-    //   return res.status(429).json({ 
-    //     message: error.message,
-    //     type: 'TOKEN_LIMIT_EXCEEDED'
-    //   });
-    // }
-    
-    res.status(500).json({ message: 'Failed to improve card' });
+    res.status(502).json({ message: error.message || 'Failed to improve card' });
   }
 });
 

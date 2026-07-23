@@ -84,12 +84,6 @@ export default function Settings() {
               className="w-full px-3 py-2 bg-surface border border-surface-light rounded-lg text-text-secondary"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">AI Token Usage</label>
-            <div className="text-text-secondary">
-              {user?.tokensUsed || 0} / {user?.dailyTokenLimit || 10000} tokens used today
-            </div>
-          </div>
         </div>
       </div>
 

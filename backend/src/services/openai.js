@@ -30,58 +30,6 @@ class OpenAIService {
     return `${type}:${hash}`;
   }
 
-  // Check and update user token usage
-  async checkTokenLimit(userId, estimatedTokens) {
-    const user = await db('users')
-      .where({ id: userId })
-      .select(['tokens_used', 'daily_token_limit'])
-      .first();
-
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    // Check daily token usage from Redis if available
-    let dailyUsage = 0;
-    if (isRedisAvailable() && redis) {
-      try {
-        dailyUsage = await redis.get(redisKeys.tokenUsage(userId)) || 0;
-      } catch (error) {
-        console.warn('Redis unavailable for limit check:', error.message);
-      }
-    }
-    const currentUsage = parseInt(dailyUsage);
-
-    // Token limit check disabled
-    // if (currentUsage + estimatedTokens > user.daily_token_limit) {
-    //   throw new Error(`Daily token limit exceeded. Used: ${currentUsage}, Limit: ${user.daily_token_limit}, Required: ${estimatedTokens}`);
-    // }
-
-    return { currentUsage, dailyLimit: user.daily_token_limit };
-  }
-
-  // Update token usage
-  async updateTokenUsage(userId, tokensUsed) {
-    // Update Redis (daily counter with 24h TTL) if available
-    if (isRedisAvailable() && redis) {
-      try {
-        const dailyKey = redisKeys.tokenUsage(userId);
-        const currentUsage = await redis.get(dailyKey) || 0;
-        const newUsage = parseInt(currentUsage) + tokensUsed;
-        await redis.setex(dailyKey, 86400, newUsage); // 24 hours TTL
-      } catch (error) {
-        console.warn('Redis unavailable for token tracking:', error.message);
-      }
-    }
-
-    // Update database (persistent record)
-    await db('users')
-      .where({ id: userId })
-      .increment('tokens_used', tokensUsed);
-
-    return tokensUsed;
-  }
-
   // Get or generate AI response with caching
   async getOrGenerateResponse(prompt, type, options = {}, userId = null) {
     const cacheKey = this.generateCacheKey(prompt, type, options);
@@ -100,25 +48,9 @@ class OpenAIService {
       }
     }
 
-    // Estimate tokens for the request
-    const estimatedTokens = Math.min(
-      Math.ceil(prompt.length / 4) + (options.maxTokens || 200),
-      this.maxTokensPerRequest
-    );
-
-    // Check token limits if userId provided - DISABLED
-    // if (userId) {
-    //   await this.checkTokenLimit(userId, estimatedTokens);
-    // }
-
     // Generate new response
     const response = await this.generateResponse(prompt, options);
-    
-    // Update token usage
-    const actualTokens = response.usage?.total_tokens || estimatedTokens;
-    if (userId) {
-      await this.updateTokenUsage(userId, actualTokens);
-    }
+    const actualTokens = response.usage?.total_tokens || 0;
 
     // Cache the response
     const cacheData = {
@@ -184,90 +116,145 @@ class OpenAIService {
         message: error.message,
         type: error.type
       });
-      // Return fallback response if API fails
-      if (error.status === 401 || error.status === 503) {
-        console.warn('[OpenAI] Using fallback questions due to API error');
-        return {
-          content: this.generateFallbackQuizzes(options.fallbackTopic || 'general', options.fallbackCount || 5),
-          usage: { total_tokens: 100 }
-        };
-      }
       throw new Error(`AI service error: ${error.message}`);
     }
   }
-  
-  // Generate fallback quiz questions when API fails
-  generateFallbackQuizzes(topic, count) {
-    const fallbackQuizzes = {
-      general: [
-        {
-          front: "What is 2 + 2?",
-          back: "The sum of 2 and 2 equals 4.",
-          difficulty: 1,
-          is_quiz: true,
-          options: ["3", "4", "5", "6"],
-          correct_option: 1
-        },
-        {
-          front: "What is the capital of France?",
-          back: "Paris has been the capital of France since medieval times.",
-          difficulty: 2,
-          is_quiz: true,
-          options: ["London", "Berlin", "Paris", "Madrid"],
-          correct_option: 2
-        },
-        {
-          front: "Which planet is closest to the Sun?",
-          back: "Mercury is the innermost planet in our solar system.",
-          difficulty: 2,
-          is_quiz: true,
-          options: ["Venus", "Mercury", "Earth", "Mars"],
-          correct_option: 1
-        },
-        {
-          front: "What year did World War II end?",
-          back: "World War II ended in 1945 with the surrender of Japan.",
-          difficulty: 3,
-          is_quiz: true,
-          options: ["1943", "1944", "1945", "1946"],
-          correct_option: 2
-        },
-        {
-          front: "What is the largest ocean on Earth?",
-          back: "The Pacific Ocean covers about 63 million square miles.",
-          difficulty: 2,
-          is_quiz: true,
-          options: ["Atlantic", "Pacific", "Indian", "Arctic"],
-          correct_option: 1
-        }
-      ]
-    };
-    
-    return JSON.stringify(fallbackQuizzes.general.slice(0, count));
+
+  // Pull a JSON array out of a model response, tolerating markdown fences and
+  // (for the last object) a response truncated mid-object by hitting max_tokens.
+  extractJsonArray(rawContent) {
+    let text = rawContent.trim();
+    if (text.startsWith('```')) {
+      text = text.replace(/^```(?:json)?/, '').replace(/```$/, '').trim();
+    }
+
+    const start = text.indexOf('[');
+    if (start === -1) throw new Error('No JSON array found in response');
+    text = text.slice(start);
+
+    if (text.trim().endsWith(']')) {
+      return JSON.parse(text);
+    }
+
+    // Truncated mid-object: drop back to the last complete object and close
+    // the array there rather than discarding the whole batch.
+    const lastComplete = text.lastIndexOf('}');
+    if (lastComplete === -1) throw new Error('Response truncated before any complete card');
+    return JSON.parse(`${text.slice(0, lastComplete + 1)}]`);
   }
 
-  // Generate flashcards from topic
+  // Coerce a raw card from the model into the shape the app expects. Small
+  // local models regularly send "difficulty": "easy" instead of a number, or
+  // put the answer text (not its index) in correct_option — normalize both
+  // instead of silently shipping broken cards to the client.
+  normalizeCard(card, fallbackDifficulty) {
+    if (!card || typeof card !== 'object') return null;
+
+    // Under prompt pressure (e.g. a long "don't repeat these" list) a small
+    // local model sometimes drifts to a different but still-valid schema —
+    // "question"/"answer" instead of "front"/"back"/"correct_option". Accept
+    // the common aliases instead of discarding otherwise-good cards.
+    const front = card.front ?? card.question ?? card.prompt;
+    let back = card.back ?? card.explanation ?? card.rationale;
+    if (typeof front !== 'string' || !front.trim()) return null;
+
+    const options = Array.isArray(card.options) ? card.options.map(String).slice(0, 4) : [];
+    if (options.length !== 4) return null;
+    // A small model asked for one card at a time sometimes pads with
+    // duplicate options (e.g. only 2 distinct choices repeated) — reject
+    // rather than ship an unanswerable quiz card.
+    const distinctOptions = new Set(options.map((o) => o.toLowerCase().trim()));
+    if (distinctOptions.size !== 4) return null;
+
+    let correctIndex = card.correct_option;
+    if (correctIndex === undefined) {
+      // Some responses only give the answer text (e.g. "answer": "Ribosome")
+      // rather than an index into options.
+      const answerText = card.answer ?? card.correct_answer ?? card.correctOption;
+      if (typeof answerText === 'string') {
+        correctIndex = options.findIndex((o) => o.toLowerCase().trim() === answerText.toLowerCase().trim());
+        if (!back && correctIndex !== -1) back = `The correct answer is ${answerText}.`;
+      }
+    }
+    if (typeof correctIndex === 'string') {
+      const asNumber = Number(correctIndex);
+      correctIndex = Number.isInteger(asNumber)
+        ? asNumber
+        : options.findIndex((o) => o.toLowerCase().trim() === correctIndex.toLowerCase().trim());
+    }
+    if (!Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex > 3) return null;
+    if (typeof back !== 'string' || !back.trim()) return null;
+
+    const difficultyWords = { easy: 1, beginner: 1, medium: 3, intermediate: 3, hard: 5, expert: 5 };
+    let difficultyNum = card.difficulty;
+    if (typeof difficultyNum === 'string') {
+      difficultyNum = difficultyWords[difficultyNum.toLowerCase().trim()] ?? Number(difficultyNum);
+    }
+    if (!Number.isFinite(difficultyNum) || difficultyNum < 1 || difficultyNum > 5) {
+      difficultyNum = fallbackDifficulty;
+    }
+
+    // A small model asked for one card at a time reliably puts the correct
+    // answer first (ignoring the "mix up position" instruction), which would
+    // make every quiz card gameable. Shuffle server-side instead of trusting
+    // the model's positioning.
+    const order = [0, 1, 2, 3];
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    const shuffledOptions = order.map((i) => options[i]);
+    const shuffledCorrectIndex = order.indexOf(correctIndex);
+
+    return {
+      front: front.trim().slice(0, 200),
+      back: back.trim().slice(0, 200),
+      difficulty: Math.round(difficultyNum),
+      is_quiz: true,
+      options: shuffledOptions,
+      correct_option: shuffledCorrectIndex
+    };
+  }
+
+  // Generate flashcards from topic. Small local models truncate long JSON
+  // arrays well before reaching the requested count, so we request cards in
+  // small batches and keep batching (deduped by question text) until we
+  // actually have `count` valid cards — instead of silently returning fewer
+  // cards or (previously) a hardcoded set of unrelated placeholder questions.
   async generateFlashcards(topic, count, difficulty, userId, metadata = {}) {
     const additionalContext = metadata.description ? `\n\nAdditional Context: ${metadata.description}` : '';
     const deckTitle = metadata.title ? `\nDeck Title: ${metadata.title}` : '';
 
-    const prompt = `Create exactly ${count} multiple choice quiz questions for the topic "${topic}" at difficulty level ${difficulty}/5.${deckTitle}${additionalContext}
+    const BATCH_SIZE = 5;
+    const TOKENS_PER_CARD = 260; // generous: observed ~150-290 tokens/card from small local models
+    // Worst case the adaptive size shrinks to 2, so budget attempts against
+    // that floor rather than the ideal batch size. DEADLINE_MS is the real
+    // backstop; this just prevents an unbounded loop if calls return fast.
+    const MAX_BATCH_ATTEMPTS = Math.ceil(count / 1) * 3 + 3;
+    // Stay well under the frontend's 300s request timeout / nginx's 310s proxy
+    // timeout, so a bad run returns a partial-but-honest set instead of being
+    // killed mid-flight and losing every card already generated.
+    const DEADLINE_MS = 260_000;
+    const startedAt = Date.now();
 
+    const buildPrompt = (batchCount, avoid) => `Create exactly ${batchCount} multiple choice quiz questions for the topic "${topic}" at difficulty level ${difficulty}/5.${deckTitle}${additionalContext}
+${avoid.length ? `\nDo not repeat these already-used questions: ${avoid.slice(-6).join(' | ')}\n` : ''}
 You must return ONLY a JSON array (starting with [ and ending with ]) containing quiz question objects. Do not include any explanatory text, markdown formatting, or other content.
 
 Each quiz question object must have exactly these fields:
 - "front": The question (max 200 chars)
 - "back": Brief explanation of why the correct answer is correct (max 200 chars)
-- "difficulty": Number from 1-5
+- "difficulty": A number from 1-5 (NOT a word like "easy")
 - "is_quiz": true (boolean)
 - "options": Array of exactly 4 answer choices (each max 100 chars)
-- "correct_option": The index (0-3) of the correct answer in the options array
+- "correct_option": The numeric index (0-3) of the correct answer in the options array — NOT the answer text
 
-IMPORTANT: 
+IMPORTANT:
 - Each question must have exactly 4 options
 - Only ONE option should be correct
 - The other 3 options should be plausible but incorrect
 - Mix up the position of the correct answer (don't always make it the same index)
+- Keep "back" concise — a short sentence, not a paragraph
 
 Example response:
 [
@@ -282,100 +269,102 @@ Example response:
 ]
 
 Topic: ${topic}
-Count: ${count}
+Count: ${batchCount}
 Difficulty: ${difficulty}`;
 
-    const options = {
-      maxTokens: Math.min(count * 130, 4096), // Cap at 4096 for gpt-3.5-turbo limit (supports ~30 cards)
-      temperature: 0.7,
-      jsonMode: false,
-      cacheTTL: 2592000,
-      systemPrompt: 'You are a quiz question generator specializing in multiple choice questions. You must return only valid JSON arrays containing quiz objects with is_quiz:true, options array, and correct_option index. Never include explanatory text or markdown formatting. The response must start with [ and end with ]. Each question must have exactly 4 options with only one correct answer.',
-      fallbackTopic: topic,
-      fallbackCount: count
-    };
+    const systemPrompt = 'You are a quiz question generator specializing in multiple choice questions. You must return only valid JSON arrays containing quiz objects with is_quiz:true, options array, and a numeric correct_option index. Never include explanatory text or markdown formatting. The response must start with [ and end with ]. Each question must have exactly 4 options with only one correct answer. difficulty must be a number, never a word.';
 
-    // Try up to 3 times to get a valid response
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      let response = null;
-      try {
-        console.log(`Attempt ${attempt} to generate flashcards for topic: ${topic}`);
-        
-        response = await this.getOrGenerateResponse(prompt, 'generateCards', options, userId);
-        
-        console.log('Raw OpenAI response:', response.content);
-        
-        // Check if response is truncated by looking for incomplete JSON
-        const content = response.content.trim();
-        if (!content.endsWith(']') && !content.endsWith('}]')) {
-          console.warn(`Attempt ${attempt}: Response appears truncated, retrying...`);
-          if (attempt < 3) continue;
-        }
-        
-        // Try to clean up the response if it has markdown formatting
-        let jsonString = content;
-        if (jsonString.startsWith('```json')) {
-          jsonString = jsonString.slice(7);
-        }
-        if (jsonString.endsWith('```')) {
-          jsonString = jsonString.slice(0, -3);
-        }
-        jsonString = jsonString.trim();
-        
-        // Try to fix incomplete JSON by finding the last complete object
-        if (!jsonString.endsWith(']')) {
-          console.log('Attempting to fix incomplete JSON...');
-          const lastCompleteObjectIndex = jsonString.lastIndexOf('}');
-          if (lastCompleteObjectIndex !== -1) {
-            jsonString = jsonString.substring(0, lastCompleteObjectIndex + 1) + ']';
-            console.log('Fixed JSON:', jsonString);
+    const cards = [];
+    const seenFronts = new Set();
+    let batchAttempts = 0;
+    // Shrinks after a batch fails outright (3/3 attempts add nothing) and
+    // grows back after a success — a small local model is far more reliable
+    // asked for 2-3 cards than 5, so retreat instead of hammering the same
+    // ask size into the ground.
+    let adaptiveBatchSize = BATCH_SIZE;
+
+    while (cards.length < count && batchAttempts < MAX_BATCH_ATTEMPTS && Date.now() - startedAt < DEADLINE_MS) {
+      const remaining = count - cards.length;
+      const batchCount = Math.min(adaptiveBatchSize, remaining);
+      let batchSucceeded = false;
+
+      // Retry a single batch up to 3 times before moving on / giving up.
+      for (let attempt = 1; attempt <= 3 && cards.length < count; attempt++) {
+        batchAttempts++;
+        try {
+          console.log(`Batch attempt ${batchAttempts} (need ${batchCount} more, have ${cards.length}/${count}) for topic: ${topic}`);
+
+          const prompt = buildPrompt(batchCount, Array.from(seenFronts));
+          const options = {
+            maxTokens: batchCount * TOKENS_PER_CARD + 100,
+            temperature: 0.7 + Math.min(attempt - 1, 2) * 0.1, // nudge sampling on retries to break repetition/truncation
+            jsonMode: false,
+            cacheTTL: 2592000, // safe to cache: the [batch:attempt] suffix below makes every call's key unique
+            systemPrompt
+          };
+
+          // Cache key must be unique per call, or a stalled batch (one that
+          // fails to add any cards) replays the same cached failure forever:
+          // `cards.length` stops changing once a batch adds nothing, so it
+          // can't be part of the uniqueness key. `batchAttempts` always
+          // increments, once per call, so it's safe.
+          const response = await this.getOrGenerateResponse(
+            `${prompt}\n\n[batch:${batchAttempts}]`,
+            'generateCards',
+            options,
+            userId
+          );
+
+          const rawCards = this.extractJsonArray(response.content);
+          if (!Array.isArray(rawCards) || rawCards.length === 0) {
+            throw new Error('Response contained no cards');
           }
+
+          let addedThisAttempt = 0;
+          for (const raw of rawCards) {
+            const card = this.normalizeCard(raw, difficulty);
+            if (!card) continue;
+            const key = card.front.toLowerCase().trim();
+            if (seenFronts.has(key)) continue;
+            seenFronts.add(key);
+            cards.push(card);
+            addedThisAttempt++;
+            if (cards.length >= count) break;
+          }
+
+          console.log(`Batch attempt ${batchAttempts}: added ${addedThisAttempt} valid cards (${cards.length}/${count} total)`);
+          if (addedThisAttempt > 0) {
+            batchSucceeded = true;
+            break; // batch succeeded, move to the next one
+          }
+
+          throw new Error('No valid cards survived normalization');
+        } catch (error) {
+          console.error(`Batch attempt ${batchAttempts} failed:`, error.message);
+          if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 800));
         }
-        
-        console.log('Cleaned JSON string:', jsonString);
-        
-        const cards = JSON.parse(jsonString);
-        if (!Array.isArray(cards)) {
-          console.error('Parsed data is not an array:', cards);
-          throw new Error('Response is not an array');
-        }
-        
-        if (cards.length === 0) {
-          throw new Error('No cards generated');
-        }
-        
-        // Ensure all cards are quiz format and valid
-        const quizCards = cards
-          .filter(card => card.front && card.back) // Filter out incomplete cards
-          .map(card => ({
-            ...card,
-            is_quiz: true,
-            options: card.options || [],
-            correct_option: card.correct_option !== undefined ? card.correct_option : 0
-          }));
-        
-        if (quizCards.length === 0) {
-          throw new Error('No valid cards generated');
-        }
-        
-        console.log(`Successfully generated ${quizCards.length} flashcards`);
-        return quizCards.slice(0, count);
-        
-      } catch (error) {
-        console.error(`Attempt ${attempt} failed:`, error.message);
-        console.error('Raw response was:', response?.content || 'No response');
-        
-        if (attempt === 3) {
-          console.log('All attempts failed, using fallback questions');
-          // Return fallback questions if all attempts fail
-          const fallbackCards = JSON.parse(this.generateFallbackQuizzes(topic, count));
-          return fallbackCards.slice(0, count);
-        }
-        
-        // Wait a bit before retrying
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      if (batchSucceeded) {
+        adaptiveBatchSize = Math.min(BATCH_SIZE, adaptiveBatchSize + 1);
+      } else {
+        adaptiveBatchSize = Math.max(1, adaptiveBatchSize - 1);
       }
     }
+
+    if (cards.length === 0) {
+      throw new Error(`Failed to generate any flashcards for "${topic}" after ${batchAttempts} attempts. The AI model may be unavailable — please try again.`);
+    }
+
+    // Don't discard real, valid cards just because we fell short of the
+    // exact requested count after generous retries — the caller reports the
+    // actual count generated, so the user sees an honest number rather than
+    // losing everything or getting padded with unrelated placeholder cards.
+    if (cards.length < count) {
+      console.warn(`Only generated ${cards.length}/${count} flashcards for "${topic}" after ${batchAttempts} batch attempts — returning the partial set.`);
+    }
+
+    return cards;
   }
 
   // Generate progressive hint
@@ -435,57 +424,6 @@ Maximum 300 characters.`;
     return response.content.trim();
   }
 
-  // Get user's token usage stats
-  async getTokenUsage(userId) {
-    try {
-      const user = await db('users')
-        .where({ id: userId })
-        .select(['tokens_used', 'daily_token_limit', 'created_at'])
-        .first();
-
-      if (!user) {
-        console.warn(`User not found: ${userId}`);
-        // Return default values instead of throwing
-        return {
-          totalTokensUsed: 0,
-          todayTokensUsed: 0,
-          dailyLimit: 10000,
-          remainingToday: 10000,
-          memberSince: new Date()
-        };
-      }
-
-      // Get today's usage from Redis if available, otherwise use 0
-      let todayUsage = 0;
-      if (isRedisAvailable() && redis) {
-        try {
-          const cached = await redis.get(redisKeys.tokenUsage(userId));
-          todayUsage = cached ? parseInt(cached) : 0;
-        } catch (error) {
-          console.warn('Redis unavailable for token usage, using default:', error.message);
-          todayUsage = 0;
-        }
-      }
-
-      return {
-        totalTokensUsed: user.tokens_used || 0,
-        todayTokensUsed: todayUsage,
-        dailyLimit: user.daily_token_limit || 10000,
-        remainingToday: (user.daily_token_limit || 10000) - todayUsage,
-        memberSince: user.created_at
-      };
-    } catch (error) {
-      console.error('Error in getTokenUsage:', error);
-      // Return safe defaults on any error
-      return {
-        totalTokensUsed: 0,
-        todayTokensUsed: 0,
-        dailyLimit: 10000,
-        remainingToday: 10000,
-        memberSince: new Date()
-      };
-    }
-  }
 }
 
 module.exports = new OpenAIService();

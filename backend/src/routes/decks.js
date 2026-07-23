@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const db = require('../config/database');
 const { authenticateToken, requireAuth } = require('../middleware/auth');
+const { aiLimiter } = require('../middleware/rateLimit');
 // const { aiQueue } = require('../config/queue'); // Disabled queue for now
 const openaiService = require('../services/openai');
 const crypto = require('crypto');
@@ -79,7 +80,7 @@ router.get('/:id', async (req, res) => {
 
     const cards = await db('cards')
       .where({ deck_id: deck.id })
-      .select(['id', 'front', 'back', 'difficulty', 'created_at'])
+      .select(['id', 'front', 'back', 'difficulty', 'is_quiz', 'options', 'correct_option', 'created_at'])
       .orderBy('created_at', 'asc');
 
     // Transform to camelCase
@@ -102,6 +103,9 @@ router.get('/:id', async (req, res) => {
         front: card.front,
         back: card.back,
         difficulty: card.difficulty,
+        is_quiz: card.is_quiz || false,
+        options: card.options || null,
+        correct_option: card.correct_option !== null ? card.correct_option : null,
         createdAt: card.created_at
       }))
     });
@@ -211,7 +215,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Generate deck from AI
-router.post('/generate', [
+router.post('/generate', aiLimiter, [
   body('topic').optional().isLength({ min: 1, max: 500 }).trim(),
   body('text').optional().isLength({ min: 1, max: 10000 }).trim(),
   body('url').optional().isURL(),
@@ -255,21 +259,6 @@ router.post('/generate', [
     } else {
       return res.status(400).json({ message: 'Invalid generation type' });
     }
-
-    // Check user token limits - DISABLED FOR NOW
-    // const dailyUsage = await db('users')
-    //   .where({ id: req.user.id })
-    //   .select(['tokens_used', 'daily_token_limit'])
-    //   .first();
-
-    const estimatedTokens = cardCount * 100; // Rough estimate
-    // if (dailyUsage.tokens_used + estimatedTokens > dailyUsage.daily_token_limit) {
-    //   return res.status(429).json({ 
-    //     message: 'Daily token limit would be exceeded',
-    //     tokensRequired: estimatedTokens,
-    //     tokensRemaining: dailyUsage.daily_token_limit - dailyUsage.tokens_used
-    //   });
-    // }
 
     // Use a database transaction to ensure atomicity
     const trx = await db.transaction();
@@ -328,10 +317,12 @@ router.post('/generate', [
       await trx.commit();
       
       res.json({
-        message: 'Deck generated successfully',
+        message: cards.length < cardCount
+          ? `Deck generated with ${cards.length} of ${cardCount} requested cards`
+          : 'Deck generated successfully',
         deck,
         cardsGenerated: cards.length,
-        estimatedTokens
+        cardsRequested: cardCount
       });
     } catch (genError) {
       console.error('Deck generation error:', genError);
@@ -341,7 +332,9 @@ router.post('/generate', [
     }
   } catch (error) {
     console.error('Generate deck error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    // Surface the real reason (e.g. "AI model may be unavailable") instead of
+    // a generic message — this is a user-actionable failure, not a bug to hide.
+    res.status(502).json({ message: error.message || 'Failed to generate deck. Please try again.' });
   }
 });
 

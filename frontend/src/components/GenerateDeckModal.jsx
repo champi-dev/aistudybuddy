@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { createPortal } from 'react-dom'
-import { X, Sparkles, Zap, FileText, Link as LinkIcon, AlertCircle } from 'lucide-react'
+import { X, Sparkles, FileText, Link as LinkIcon } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import Button from './ui/Button'
 import Input from './ui/Input'
-import { useAuthStore } from '../stores/authStore'
 import { useGenerateDeck } from '../hooks/useDecks'
 import toast from 'react-hot-toast'
 
@@ -13,33 +12,19 @@ export default function GenerateDeckModal({ isOpen, onClose }) {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('topic')
   const [isGenerating, setIsGenerating] = useState(false)
-  const [estimatedTokens, setEstimatedTokens] = useState(0)
-  const { user, hasTokens, refreshUser } = useAuthStore()
   const generateDeckMutation = useGenerateDeck()
-  
+
   const {
     register,
     handleSubmit,
     formState: { errors },
-    reset,
-    watch
+    reset
   } = useForm({
     defaultValues: {
       cardCount: 10,
       difficulty: 2
     }
   })
-
-  const cardCount = watch('cardCount')
-  const difficulty = watch('difficulty')
-
-  // Estimate tokens based on card count and difficulty
-  useState(() => {
-    const baseTokensPerCard = 100
-    const difficultyMultiplier = 1 + (difficulty - 1) * 0.2
-    const estimated = Math.round(cardCount * baseTokensPerCard * difficultyMultiplier)
-    setEstimatedTokens(estimated)
-  }, [cardCount, difficulty])
 
   const tabs = [
     { id: 'topic', label: 'From Topic', icon: Sparkles },
@@ -57,13 +42,8 @@ export default function GenerateDeckModal({ isOpen, onClose }) {
   const cardCountOptions = [5, 10, 15, 20, 25, 30, 40, 50]
 
   const onSubmit = async (data) => {
-    if (!hasTokens(estimatedTokens)) {
-      toast.error(`Insufficient tokens. You need ${estimatedTokens} tokens but only have ${user?.dailyTokenLimit - user?.tokensUsed} remaining.`)
-      return
-    }
-
     setIsGenerating(true)
-    
+
     try {
       // Prepare generation data based on active tab
       const generationData = {
@@ -73,25 +53,24 @@ export default function GenerateDeckModal({ isOpen, onClose }) {
         ...data
       }
 
-      console.log('Generating deck:', generationData)
       const result = await generateDeckMutation.mutateAsync(generationData)
-
-      console.log('Generation result:', result)
 
       // Extract the actual data from axios response
       const responseData = result.data || result
       const cardsGenerated = responseData.cardsGenerated || 0
-
-      // Refresh user data to get updated token usage from backend
-      await refreshUser()
+      const cardsRequested = responseData.cardsRequested || data.cardCount
 
       reset()
       onClose()
-      toast.success(`Deck generated successfully with ${cardsGenerated} cards!`)
-      
+      toast.success(
+        cardsGenerated < cardsRequested
+          ? `Deck generated with ${cardsGenerated} of ${cardsRequested} requested cards`
+          : `Deck generated successfully with ${cardsGenerated} cards!`
+      )
+
       // Invalidate queries to refresh the dashboard
       queryClient.invalidateQueries(['decks'])
-      
+
     } catch (error) {
       console.error('Error generating deck:', error)
       
@@ -115,9 +94,6 @@ export default function GenerateDeckModal({ isOpen, onClose }) {
   }
 
   if (!isOpen) return null
-
-  const remainingTokens = user ? user.dailyTokenLimit - user.tokensUsed : 0
-  const canGenerate = hasTokens(estimatedTokens)
 
   return createPortal(
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-2 sm:p-4 z-[9999]">
@@ -271,30 +247,6 @@ export default function GenerateDeckModal({ isOpen, onClose }) {
             </div>
           </div>
 
-          {/* Token Usage Info */}
-          <div className="bg-background rounded-lg p-4 border border-surface-light">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center">
-                <Zap className="h-4 w-4 text-secondary mr-2" />
-                <span className="text-sm font-medium text-text-primary">Token Usage</span>
-              </div>
-              <span className="text-sm text-text-secondary">
-                ~{estimatedTokens.toLocaleString()} tokens
-              </span>
-            </div>
-            
-            <div className="text-xs text-text-secondary">
-              <p>Remaining today: {remainingTokens.toLocaleString()} tokens</p>
-            </div>
-
-            {!canGenerate && (
-              <div className="flex items-center mt-2 text-warning">
-                <AlertCircle className="h-4 w-4 mr-2" />
-                <span className="text-xs">Insufficient tokens for this generation</span>
-              </div>
-            )}
-          </div>
-
           {/* Actions */}
           <div className="flex gap-3 pt-4">
             <Button
@@ -307,7 +259,7 @@ export default function GenerateDeckModal({ isOpen, onClose }) {
             </Button>
             <Button
               type="submit"
-              disabled={isGenerating || !canGenerate}
+              disabled={isGenerating}
               className="flex-1"
             >
               {isGenerating ? (

@@ -29,9 +29,6 @@ export const useAuthStore = create(
 
           get().setAuth(user, token)
 
-          // Fetch actual daily token usage after login
-          await get().refreshUser()
-
           toast.success('Welcome back!')
           return true
         } catch (error) {
@@ -51,9 +48,6 @@ export const useAuthStore = create(
           const { user, token } = response.data
 
           get().setAuth(user, token)
-
-          // Fetch actual daily token usage after registration
-          await get().refreshUser()
 
           toast.success('Account created successfully!')
           return true
@@ -81,20 +75,8 @@ export const useAuthStore = create(
       // Refresh user data
       refreshUser: async () => {
         try {
-          const [userResponse, usageResponse] = await Promise.all([
-            authAPI.me(),
-            authAPI.getTokenUsage()
-          ])
-
-          // Merge user data with daily token usage
-          set({
-            user: {
-              ...userResponse.data.user,
-              // Use daily token usage instead of cumulative
-              tokensUsed: usageResponse.data.usage.todayTokensUsed || 0,
-              dailyTokenLimit: usageResponse.data.usage.dailyLimit || 10000
-            }
-          })
+          const userResponse = await authAPI.me()
+          set({ user: userResponse.data.user })
         } catch (error) {
           console.error('Refresh user error:', error)
           if (error.response?.status === 401) {
@@ -104,32 +86,19 @@ export const useAuthStore = create(
           throw error
         }
       },
-      
-      // Check if user has enough tokens (for daily limit)
-      hasTokens: (required = 100) => {
-        const { user } = get()
-        if (!user) return false
 
-        const remaining = user.dailyTokenLimit - user.tokensUsed
-        return remaining >= required
-      },
-      
       // Switch user for development testing
       switchUser: (userId) => {
         const users = {
           'test01': {
             id: 'c60af1eb-a07e-43c5-b599-ec19a9547bde',
             username: 'testuser01',
-            email: 'testuser01@example.com',
-            tokensUsed: 0,
-            dailyTokenLimit: 10000
+            email: 'testuser01@example.com'
           },
           'test02': {
             id: '2388887a-9e5a-4cb9-a713-4e2ee6b81885',
             username: 'testuser02',
-            email: 'testuser02@example.com',
-            tokensUsed: 0,
-            dailyTokenLimit: 10000
+            email: 'testuser02@example.com'
           }
         }
         
